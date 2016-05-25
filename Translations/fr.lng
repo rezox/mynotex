@@ -1,4 +1,4 @@
-[mynotex]
+﻿[mynotex]
 // Max length for each item: 255 characters
 msg001=Supprimer le sujet actuel et les notes qu'il contient?
 msg002=Créer un nouveau sujet?
@@ -80,6 +80,8 @@ msg077=Supprimer l'activité actuelle ainsi que ses sous-activités, s'il y a li
 msg078=Déplacer les activités de la note vers la grille?
 msg079=Caractères
 msg080=La date * n'est pas dans un bon format.
+msg081=Il est
+msg082=restantes
 sbr001=Note en cours d'édition.
 sbr002=Aucune note.
 sbr003=Note numéro
@@ -133,7 +135,7 @@ cpt039=Taille de l'image:
 cpt040=Visiter le forum d'aide de MyNotex.
 cpt041=Exporter la date
 cpt042=Ouvrir le fichier déchiffré
-cpt043=Fichier chiffré|*.asc
+cpt043=Fichier chiffré|*.pgp
 cpt044=Police par défaut pour le texte:
 cpt045=points.
 cpt046=Dossier de synchronisation:
@@ -185,6 +187,11 @@ cpt091=Le projet débute à
 cpt092=et se termine à
 cpt093=Le projet se termine à
 cpt094=Aucune date
+cpt095=Désactiver l'autosauvegarde
+cpt096=Interligne
+cpt097=Espace entre paragraphe
+cpt098=Régler l'alarme
+cpt099=Activater
 cpn001=Recherche inactive.
 cpn002=Le titre du sujet commence par
 cpn003=Le titre du sujet contient
@@ -328,6 +335,13 @@ cpn140=Réglage d'impression...
 cpn141=Date de départ par défaut:
 cpn142=Reculer les dates d'un jour
 cpn143=Avancer les dates d'un jour
+cpn144=Régler l'alarme...
+cpn145=Premier
+cpn146=Précédent
+cpn147=Suivant
+cpn148=Dernier
+cpn149=Rechercher dans toute l'archive
+cpn150=Rechercher dans les résultats
 cmn001=janvier
 cmn002=février
 cmn003=mars
@@ -348,4 +362,5 @@ cdn005=jeudi
 cdn006=vendredi
 cdn007=samedi
 dtfmt=DMY
-
+//Delete the // in the following line to enable the 24 hour format
+hour=24

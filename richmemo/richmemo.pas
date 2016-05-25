@@ -87,6 +87,12 @@ type
     function MoveParUpDown(CurrLine: Integer; MoveUp: Boolean): Boolean; virtual;
     function CountChar: integer;  virtual;
     function SetCursorMiddleScreen(CurrLine: integer): boolean; virtual;
+    function GetUndo(Start: integer): boolean; virtual;
+    function SetUndo(Start: integer): boolean; virtual;
+    function ClearUndo: boolean; virtual;
+    function SetLineSpace(Space: integer): boolean; virtual;
+    function SetParagraphSpace(Space: integer): boolean; virtual;
+    function CleanParagraph(Start: integer): boolean; virtual;
     property HideSelection : Boolean read fHideSelection write SetHideSelection;
   end;
   
@@ -459,11 +465,65 @@ begin
    Result := 0;
 end;
 
+function TCustomRichMemo.GetUndo(Start: integer): boolean;
+begin
+  // Added by Massimo Nardello
+  if HandleAllocated then begin
+    Result := TWSCustomRichMemoClass(WidgetSetClass).GetUndo(Self, Start);
+  end else
+   Result := False;
+end;
+
+function TCustomRichMemo.SetUndo(Start: integer): boolean;
+begin
+  // Added by Massimo Nardello
+  if HandleAllocated then begin
+    Result := TWSCustomRichMemoClass(WidgetSetClass).SetUndo(Self, Start);
+  end else
+   Result := False;
+end;
+
+function TCustomRichMemo.ClearUndo: boolean;
+begin
+  // Added by Massimo Nardello
+  if HandleAllocated then begin
+    Result := TWSCustomRichMemoClass(WidgetSetClass).ClearUndo(Self);
+  end else
+   Result := False;
+end;
+
 function TCustomRichMemo.SetCursorMiddleScreen(CurrLine: integer): boolean;
 begin
   // Added by Massimo Nardello
   if HandleAllocated then begin
     Result := TWSCustomRichMemoClass(WidgetSetClass).SetCursorMiddleScreen(Self, CurrLine);
+  end else
+   Result := False;
+end;
+
+function TCustomRichMemo.SetLineSpace(Space: integer): boolean;
+begin
+  // Added by Massimo Nardello
+  if HandleAllocated then begin
+    Result := TWSCustomRichMemoClass(WidgetSetClass).SetLineSpace(Self, Space);
+  end else
+   Result := False;
+end;
+
+function TCustomRichMemo.SetParagraphSpace(Space: integer): boolean;
+begin
+  // Added by Massimo Nardello
+  if HandleAllocated then begin
+    Result := TWSCustomRichMemoClass(WidgetSetClass).SetParagraphSpace(Self, Space);
+  end else
+   Result := False;
+end;
+
+function TCustomRichMemo.CleanParagraph(Start: Integer): boolean;
+begin
+  // Added by Massimo Nardello
+  if HandleAllocated then begin
+    Result := TWSCustomRichMemoClass(WidgetSetClass).CleanParagraph(Self, Start);
   end else
    Result := False;
 end;

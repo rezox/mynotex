@@ -1,7 +1,7 @@
 // ***********************************************************************
 // ***********************************************************************
-// MyNotex 1.3
-// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2015.
+// MyNotex 1.4
+// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2016.
 // Free software released under GPL licence version 3 or later.
 
 // In this software is used DBZVDateTimePicker component
@@ -35,7 +35,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, LResources, Forms, Controls, Graphics, Dialogs,
-  DBCtrls, StdCtrls, ColorBox, DB;
+  DBCtrls, StdCtrls, DB;
 
 type
 
@@ -115,8 +115,7 @@ begin
   dbSubName.SetFocus;
 end;
 
-procedure TfmCommentsSubjects.FormClose(Sender: TObject;
-  var CloseAction: TCloseAction);
+procedure TfmCommentsSubjects.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
   // Undo
   if fmMain.dsSubjects.State in [dsEdit, dsInsert] then
@@ -129,4 +128,5 @@ initialization
   {$I unit4.lrs}
 
 end.
+
 

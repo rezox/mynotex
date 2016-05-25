@@ -1,7 +1,7 @@
 // ***********************************************************************
 // ***********************************************************************
-// MyNotex 1.3
-// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2015.
+// MyNotex 1.4
+// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2016.
 // Free software released under GPL licence version 3 or later.
 
 // In this software is used DBZVDateTimePicker component
@@ -176,10 +176,11 @@ begin
             // A deleted subject in an import or export operation
             // with deletion of original records
             // could be imported again, and must not be deleted
-            with sqWriteDelRec do begin
+            with sqWriteDelRec do
+            begin
               Open;
-              if Locate('DelRecUID',
-                sqReadSubjects.FieldByName('SubjectsUID').AsString, []) = True then
+              if Locate('DelRecUID', sqReadSubjects.FieldByName(
+                'SubjectsUID').AsString, []) = True then
               begin
                 Delete;
                 ApplyUpdates;
@@ -237,10 +238,11 @@ begin
               // A deleted note in an import or export operation
               // with deletion of original records
               // could be imported again, and must not be deleted
-              with sqWriteDelRec do begin
+              with sqWriteDelRec do
+              begin
                 Open;
-                if Locate('DelRecUID',
-                  sqReadNotes.FieldByName('NotesUID').AsString, []) = True then
+                if Locate('DelRecUID', sqReadNotes.FieldByName(
+                  'NotesUID').AsString, []) = True then
                 begin
                   Delete;
                   ApplyUpdates;
@@ -372,7 +374,8 @@ begin
                 MessageDlg(fmMain.msg035, mtWarning, [mbOK], 0);
                 Abort;
               end;
-              with sqReadDelRec do begin
+              with sqReadDelRec do
+              begin
                 // DelRec must be opened and closed each time to read the modification
                 // made by a sync operation by another possible session of mynotex.
                 Open;
@@ -391,7 +394,8 @@ begin
             sqReadNotes.Close;
             // Delete subject
             IDPos := sqReadSubjects.RecNo;
-            with sqReadDelRec do begin
+            with sqReadDelRec do
+            begin
               Open;
               Append;
               sqReadDelRec.FieldByName('DelRecUID').AsString :=
@@ -713,12 +717,12 @@ begin
       CloseFile(myFile);
       Close;
     end;
-    sqReadSubjects.Close;
-    sqReadNotes.Close;
-    sqReadDelRec.Close;
-    sqWriteSubjects.Close;
-    sqWriteNotes.Close;
-    sqWriteDelRec.Close;
+  sqReadSubjects.Close;
+  sqReadNotes.Close;
+  sqReadDelRec.Close;
+  sqWriteSubjects.Close;
+  sqWriteNotes.Close;
+  sqWriteDelRec.Close;
 end;
 
 initialization

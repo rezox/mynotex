@@ -26,109 +26,97 @@
 // GNU General Public License for more details.
 // ***********************************************************************
 // ***********************************************************************
-
-unit Unit6;
+unit Unit10;
 
 {$mode objfpc}
 
 interface
 
 uses
-  Classes, SysUtils, FileUtil, LResources, Forms, Controls, Graphics, Dialogs,
-  ExtCtrls, StdCtrls;
+  Classes, SysUtils, FileUtil, ZVDateTimePicker, LResources, Forms, Controls,
+  Graphics, Dialogs, StdCtrls, ExtCtrls;
 
 type
 
-  { TfmResizeImage }
+  { TfmSetAlarm }
 
-  TfmResizeImage = class(TForm)
-    bnSubCommCancel: TButton;
-    bnSubCommOK: TButton;
-    lbSize: TLabel;
-    rgResizeImage: TRadioGroup;
+  TfmSetAlarm = class(TForm)
+    bnOKAlarm: TButton;
+    cbAlarm: TCheckBox;
+    imAlarm: TImage;
+    tpAlarm: TZVDateTimePicker;
+    procedure cbAlarmChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: char);
     procedure FormShow(Sender: TObject);
   private
-    procedure SetLabelValues;
     { private declarations }
   public
     { public declarations }
-    procedure SetImageHeigth(ImgHeigth: integer);
-    procedure SetImageWidth(ImgWidth: integer);
   end;
 
 var
-  fmResizeImage: TfmResizeImage;
-  ImageWidth, ImageHeigth: integer;
-  LabelCaption: string = 'Picture size:';
+  fmSetAlarm: TfmSetAlarm;
 
 implementation
 
-// Main form
 uses Unit1;
 
-{ TfmResizeImage }
+{ TfmSetAlarm }
 
-procedure TfmResizeImage.FormShow(Sender: TObject);
-begin
-  // Change label size values
-  // Valid also for OnClick event of TRadioGroup
-  SetLabelValues;
-end;
-
-procedure TfmResizeImage.FormCreate(Sender: TObject);
+procedure TfmSetAlarm.FormCreate(Sender: TObject);
 begin
   //Change form color
-  fmResizeImage.Color := fmMain.Color;
+  fmSetAlarm.Color := fmMain.Color;
 end;
 
-procedure TfmResizeImage.FormKeyPress(Sender: TObject; var Key: char);
+procedure TfmSetAlarm.cbAlarmChange(Sender: TObject);
+begin
+  if cbAlarm.Checked = True then
+  begin
+    fmMain.tmAlarm.Enabled := True;
+  end
+  else
+  begin
+    fmMain.tmAlarm.Enabled := False;
+    fmMain.sbStatusBar.Panels[1].Text := '';
+  end;
+end;
+
+procedure TfmSetAlarm.FormKeyPress(Sender: TObject; var Key: char);
 begin
   // Close on ESC
   if Key = #27 then
   begin
-    ModalResult := mrCancel;
+    cbAlarm.Checked := False;
+    Close;
+  end
+  else if key = #13 then
+  begin
+    cbAlarm.Checked := True;
+    Close;
   end;
 end;
 
-procedure TfmResizeImage.SetImageWidth(ImgWidth: integer);
-begin
-  //Set image width for label
-  ImageWidth := ImgWidth;
-end;
-
-procedure TfmResizeImage.SetImageHeigth(ImgHeigth: integer);
-begin
-  //Set image height for label
-  ImageHeigth := ImgHeigth;
-end;
-
-procedure TfmResizeImage.SetLabelValues;
+procedure TfmSetAlarm.FormShow(Sender: TObject);
 var
-  LevResize: single;
+  Fds: TFormatSettings;
 begin
-  // Set label size value
-  case rgResizeImage.ItemIndex of
-    0: LevResize := 0.05;
-    1: LevResize := 0.1;
-    2: LevResize := 0.3;
-    3: LevResize := 0.6;
-    4: LevResize := 0.8;
-    5: LevResize := 1;
-    6: LevResize := 1.2;
-    7: LevResize := 1.4;
-    8: LevResize := 1.6;
-    9: LevResize := 1.8;
-    10: LevResize := 2.0;
-    11: LevResize := 3.0;
+  // Set hour and select time field
+  Fds := DefaultFormatSettings;
+  Fds.LongTimeFormat := 'hh:nn:00';
+  if fmMain.fl24Hour = True then
+  begin
+    tpAlarm.TimeFormat := tf24;
   end;
-  lbSize.Caption := LabelCaption + ' ' + IntToStr(Trunc(ImageWidth * LevResize)) +
-    'x' + IntToStr(Trunc(ImageHeigth * LevResize));
+  if cbAlarm.Checked = False then
+  begin
+    tpAlarm.Time := StrToTime(TimeToStr(Time, Fds));
+  end;
+  tpAlarm.SetFocus;
 end;
 
 initialization
-  {$I unit6.lrs}
+  {$I unit10.lrs}
 
 end.
-

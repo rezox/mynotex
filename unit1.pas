@@ -1,9 +1,9 @@
 // ***********************************************************************
 // ***********************************************************************
-// MyNotex 1.3
-// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2015.
+// MyNotex 1.4
+// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2016.
 // Free software released under GPL licence version 3 or later.
-//
+
 // In this software is used DBZVDateTimePicker component
 // (http://wiki.freepascal.org/ZVDateTimeControls_Package#TDBZVDateTimePicker),
 // a modified version of RichMemo component
@@ -11,7 +11,7 @@
 // component (http://wiki.lazarus.freepascal.org/DCPcrypt).
 // The source code of the modified version of RichMemo is available in
 // the website of MyNotex.
-//
+
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -19,7 +19,7 @@
 // of the Licence in http://www.gnu.org/licenses/gpl-3.0.txt
 // or in the file Licence.txt included in the files of the
 // source code of this software.
-//
+
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
@@ -34,17 +34,18 @@ unit Unit1;
 interface
 
 uses
-  Classes, SysUtils, Sqlite3DS, db, FileUtil, LResources, Forms, Controls,
+  Classes, SysUtils, Sqlite3DS, DB, FileUtil, LResources, Forms, Controls,
   Graphics, Dialogs, Menus, ComCtrls, ExtCtrls, StdCtrls, Grids, DBGrids,
-  DbCtrls, DBZVDateTimePicker, ZVDateTimePicker, RichMemo, WSRichMemo, IpHtml,
+  DBCtrls, DBZVDateTimePicker, ZVDateTimePicker, RichMemo, WSRichMemo, IpHtml,
   Ipfilebroker, PrintersDlgs, DCPrijndael, DCPsha1, Inifiles, Variants, Zipper,
   LCLProc, Process, LCLType, Clipbrd, Buttons, FileCtrl, ExtDlgs, types,
-  LCLIntf, OSPrinters;
+  LCLIntf, OSPrinters, Dateutils;
 
 type
   { TfmMain }
   TfmMain = class(TForm)
     apAppProp: TApplicationProperties;
+    bnFind2: TBitBtn;
     bnSubDown: TBitBtn;
     bnNotesUp: TBitBtn;
     bnFind: TBitBtn;
@@ -54,9 +55,12 @@ type
     bnSubUp: TBitBtn;
     bvBevelFind: TBevel;
     cbFindKind: TComboBox;
+    dbDate: TDBZVDateTimePicker;
+    dbNavigator: TDBNavigator;
     dbSubComm: TDBMemo;
     dbTags: TDBEdit;
     dbText: TRichMemo;
+    dbTitle: TDBEdit;
     dcAES: TDCP_rijndael;
     dsFind: TDatasource;
     dtCalAct: TZVDateTimePicker;
@@ -70,9 +74,6 @@ type
     edFindText: TEdit;
     fdColorDialog: TColorDialog;
     grSubjects: TDBGrid;
-    dbNavigator: TDBNavigator;
-    dbTitle: TDBEdit;
-    dbDate: TDBZVDateTimePicker;
     dsNotes: TDatasource;
     dsSubjects: TDatasource;
     fdFontSelDialog: TFontDialog;
@@ -85,18 +86,23 @@ type
     IpFileDataProvider1: TIpFileDataProvider;
     ipPrint: TIpHtmlPanel;
     lbActDates: TLabel;
+    lbAttNames: TListBox;
     lbCalAct: TLabel;
+    lbDate: TLabel;
     lbListAttach: TLabel;
     lbListTags: TLabel;
-    lbAttNames: TListBox;
     lbFound: TLabel;
     lbPwdBottom: TLabel;
     lbPwdTop: TLabel;
-    lbTitle: TLabel;
-    lbDate: TLabel;
     lbTags: TLabel;
     lbTagsNames: TListBox;
+    lbTitle: TLabel;
     meActNotes: TMemo;
+    meSearchCond: TMemo;
+    miToolsAlarm: TMenuItem;
+    miLines21: TMenuItem;
+    miNotesUndo: TMenuItem;
+    miLine8a: TMenuItem;
     miLine7a: TMenuItem;
     miLine8b: TMenuItem;
     miLines17b: TMenuItem;
@@ -108,6 +114,8 @@ type
     miSubjectOrderCustom: TMenuItem;
     miSubjectOrder: TMenuItem;
     miLine7b: TMenuItem;
+    pnMinaData: TPanel;
+    pnAttList: TPanel;
     pnDetDates: TPanel;
     pnDates: TPanel;
     pnBtnNotes: TPanel;
@@ -160,7 +168,7 @@ type
     pmHeading3: TMenuItem;
     pmHeading2: TMenuItem;
     pmHeading1: TMenuItem;
-    miLines21: TMenuItem;
+    miLines22: TMenuItem;
     miToolsOptions: TMenuItem;
     miLine10: TMenuItem;
     miNotesEncDecrypt: TMenuItem;
@@ -273,6 +281,7 @@ type
     sdSelDirDialog: TSelectDirectoryDialog;
     spActivities: TSplitter;
     spActNotes: TSplitter;
+    spSplitterAttach: TSplitter;
     spSplitterSubComm: TSplitter;
     spSplitterFind: TSplitter;
     spSplitterNotes: TSplitter;
@@ -295,6 +304,7 @@ type
     tbFileNew: TToolButton;
     tbFileOpen: TToolButton;
     tbFileSave: TToolButton;
+    tmAlarm: TTimer;
     tmTimerSave: TTimer;
     ToolButton1: TToolButton;
     ToolButton10: TToolButton;
@@ -342,6 +352,7 @@ type
     ToolButton8: TToolButton;
     ToolButton9: TToolButton;
     procedure apAppPropException(Sender: TObject; E: Exception);
+    procedure bnFind2Click(Sender: TObject);
     procedure bnFindClick(Sender: TObject);
     procedure bnNotesDownClick(Sender: TObject);
     procedure bnNotesUpClick(Sender: TObject);
@@ -351,56 +362,54 @@ type
     procedure dbDateKeyPress(Sender: TObject; var Key: char);
     procedure dbTagsKeyPress(Sender: TObject; var Key: char);
     procedure dbTextClick(Sender: TObject);
-    procedure dbTextKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-    procedure dbTextKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure dbTextKeyDown(Sender: TObject; var Key: word; Shift: TShiftState);
+    procedure dbTextKeyUp(Sender: TObject; var Key: word; Shift: TShiftState);
     procedure dbTextMouseUp(Sender: TObject; Button: TMouseButton;
-      Shift: TShiftState; X, Y: Integer);
+      Shift: TShiftState; X, Y: integer);
     procedure dbTextMouseWheel(Sender: TObject; Shift: TShiftState;
-      WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
-    procedure dbTitleKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState
-      );
+      WheelDelta: integer; MousePos: TPoint; var Handled: boolean);
+    procedure dbTitleKeyDown(Sender: TObject; var Key: word; Shift: TShiftState);
     procedure dbTitleKeyPress(Sender: TObject; var Key: char);
     procedure dsNotesDataChange(Sender: TObject; Field: TField);
     procedure dsNotesStateChange(Sender: TObject);
     procedure dsSubjectsDataChange(Sender: TObject; Field: TField);
     procedure dsSubjectsStateChange(Sender: TObject);
-    procedure edFindTextKeyPress(Sender: TObject; var Key: char);
+    procedure edFindTextKeyDown(Sender: TObject; var Key: word; Shift: TShiftState);
     procedure edLocateTextKeyPress(Sender: TObject; var Key: char);
     procedure edPasswordKeyPress(Sender: TObject; var Key: char);
     procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
     procedure FormCreate(Sender: TObject);
-    procedure FormDragOver(Sender, Source: TObject; X, Y: Integer;
-      State: TDragState; var Accept: Boolean);
-    procedure FormDropFiles(Sender: TObject; const FileNames: array of String);
-    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure FormDragOver(Sender, Source: TObject; X, Y: integer;
+      State: TDragState; var Accept: boolean);
+    procedure FormDropFiles(Sender: TObject; const FileNames: array of string);
+    procedure FormKeyDown(Sender: TObject; var Key: word; Shift: TShiftState);
     procedure FormResize(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FormWindowStateChange(Sender: TObject);
-    procedure grActGridKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState
-      );
-    procedure grActGridPrepareCanvas(sender: TObject; aCol, aRow: Integer;
+    procedure grActGridKeyUp(Sender: TObject; var Key: word; Shift: TShiftState);
+    procedure grActGridPrepareCanvas(Sender: TObject; aCol, aRow: integer;
       aState: TGridDrawState);
     procedure grSubjectsExit(Sender: TObject);
-    procedure grSubjectsKeyDown(Sender: TObject; var Key: Word;
-      Shift: TShiftState);
-    procedure grSubjectsPrepareCanvas(sender: TObject; DataCol: Integer;
+    procedure grSubjectsKeyDown(Sender: TObject; var Key: word; Shift: TShiftState);
+    procedure grSubjectsPrepareCanvas(Sender: TObject; DataCol: integer;
       Column: TColumn; AState: TGridDrawState);
     procedure grTitlesDblClick(Sender: TObject);
-    procedure grTitlesDrawCell(Sender: TObject; aCol, aRow: Integer;
+    procedure grTitlesDrawCell(Sender: TObject; aCol, aRow: integer;
       aRect: TRect; aState: TGridDrawState);
-    procedure grTitlesKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState
-      );
-    procedure grTitlesSelectCell(Sender: TObject; aCol, aRow: Integer;
-      var CanSelect: Boolean);
+    procedure grTitlesKeyDown(Sender: TObject; var Key: word; Shift: TShiftState);
+    procedure grTitlesSelectCell(Sender: TObject; aCol, aRow: integer;
+      var CanSelect: boolean);
     procedure lbAttNamesDblClick(Sender: TObject);
     procedure lbAttNamesExit(Sender: TObject);
     procedure lbPwdTopResize(Sender: TObject);
     procedure lbTagsNamesDblClick(Sender: TObject);
     procedure lbTagsNamesExit(Sender: TObject);
     procedure meActNotesChange(Sender: TObject);
+    procedure miToolsAlarmClick(Sender: TObject);
     procedure miFilePrinterSetupClick(Sender: TObject);
     procedure miNotesLookClick(Sender: TObject);
     procedure miNotesShowCalClick(Sender: TObject);
+    procedure miNotesUndoClick(Sender: TObject);
     procedure miSubjectLookClick(Sender: TObject);
     procedure miSubjectOrderTitleClick(Sender: TObject);
     procedure miToolsEncryptGPGClick(Sender: TObject);
@@ -454,6 +463,8 @@ type
     procedure pmTextCopyLatexClick(Sender: TObject);
     procedure pmTextSelectAllClick(Sender: TObject);
     procedure pmTextSendAsEmailClick(Sender: TObject);
+    procedure sbStatusBarDrawPanel(StatusBar: TStatusBar; Panel: TStatusPanel;
+      const Rect: TRect);
     procedure sqFindAfterScroll(DataSet: TDataSet);
     procedure sqNotesAfterDelete(DataSet: TDataSet);
     procedure sqNotesAfterInsert(DataSet: TDataSet);
@@ -471,7 +482,7 @@ type
     procedure sqSubjectsBeforeInsert(DataSet: TDataSet);
     procedure sqSubjectsBeforePost(DataSet: TDataSet);
     procedure FindFirstNext(Sender: TObject);
-    function IsDirectoryEmpty(const myDir: string): Boolean;
+    function IsDirectoryEmpty(const myDir: string): boolean;
     procedure sqSubjectsBeforeScroll(DataSet: TDataSet);
     procedure tbActClearAllClick(Sender: TObject);
     procedure tbActCopyAllClick(Sender: TObject);
@@ -489,16 +500,16 @@ type
     procedure tbOpenNoteClick(Sender: TObject);
     procedure tbPasteClick(Sender: TObject);
     procedure tiTrayIconClick(Sender: TObject);
+    procedure tmAlarmTimer(Sender: TObject);
     procedure tmTimerSaveTimer(Sender: TObject);
     procedure SetHeadings(Sender: TObject);
-    procedure AddImage(FileName: String);
+    procedure AddImage(FileName: string);
     procedure grActGridDrawCell(Sender: TObject; aCol, aRow: integer;
       aRect: TRect; aState: TGridDrawState);
     procedure grActGridEditingDone(Sender: TObject);
     procedure grActGridGetEditMask(Sender: TObject; ACol, ARow: integer;
       var Value: string);
-    procedure grActGridKeyDown(Sender: TObject; var Key: word;
-      Shift: TShiftState);
+    procedure grActGridKeyDown(Sender: TObject; var Key: word; Shift: TShiftState);
     procedure grActGridMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: integer);
     procedure grActGridSelectCell(Sender: TObject; aCol, aRow: integer;
@@ -513,53 +524,56 @@ type
     procedure tbActMoveDownClick(Sender: TObject);
     procedure tbActMoveUpClick(Sender: TObject);
     procedure tbActShowWbsClick(Sender: TObject);
-    function CheckNumbers(Source: String): Boolean;
+    function CheckNumbers(Source: string): boolean;
     procedure CreateTagsList;
-    function ConvertDateFormat(Data, FileFormat, SftFormat: String): String;
-    procedure SetCharCount(ToHide: Boolean);
+    function ConvertDateFormat(Data, FileFormat, SftFormat: string): string;
+    procedure SetCharCount(ToHide: boolean);
   private
-    function AdjustPosForImages(Pos: Integer): Integer;
-    function AreFontParamsEqual(fp1, fp2: TFontParams): Boolean;
+    function AdjustPosForImages(Pos: integer): integer;
+    function AreFontParamsEqual(fp1, fp2: TFontParams): boolean;
     procedure CalcActDates;
-    function CheckLink: Integer;
+    function CheckLink: integer;
     procedure CheckPasswordInput;
-    function CleanTagsField(myField: String): String;
+    function CleanTagsField(myField: string): string;
     procedure ActivateFormatIcons;
-    procedure ConvertFromTomboyGnote(DataPath: String);
+    procedure ClearUndoData;
+    procedure ConvertFromTomboyGnote(DataPath: string);
     procedure CopyActivityGroup;
     procedure CopyAllRows;
-    procedure CreateAttachment(FileNames: array of String);
-    procedure CreateDataTables(DataFileName: String);
+    procedure CreateAttachment(FileNames: array of string);
+    procedure CreateDataTables(DataFileName: string);
     procedure DisableShowTextOnly;
     procedure EditNotesDataset;
-    procedure FindData;
+    procedure FindData(SearchWithin: boolean);
     procedure LoadActivitiesData;
-    function GetBullet: Integer;
-    function GetTomboyGnoteCreateDate(stText: String): TDate;
-    function GetTomboyGnoteLastChangeDate(stText: String): TDateTime;
-    function GetTomboyGnoteSubject(stText: String): String;
-    function GetTomboyGnoteText(stText: String): String;
-    function GetTomboyGnoteTitle(stText: String): String;
+    function GetBullet: integer;
+    function GetTomboyGnoteCreateDate(stText: string): TDate;
+    function GetTomboyGnoteLastChangeDate(stText: string): TDateTime;
+    function GetTomboyGnoteSubject(stText: string): string;
+    function GetTomboyGnoteText(stText: string): string;
+    function GetTomboyGnoteTitle(stText: string): string;
     procedure HidePasswordInput;
     procedure LoadTitleDateGrid;
-    procedure MakeLink(SelStart: Integer);
+    procedure MakeLink(SelStart: integer);
     procedure LoadRichMemo;
     procedure LocateFromGrid;
-    procedure MakeTableUpgrade(DataFileName: String);
-    procedure OpenDataTables(DataFileName: String);
+    procedure MakeTableUpgrade(DataFileName: string);
+    procedure OpenDataTables(DataFileName: string);
     procedure PasteActivityGroup;
     procedure SaveAllData;
     procedure CloseDataTables;
-    function SaveRichMemo(FromIdx, ToIdx: Integer; SavePictures: Boolean):WideString;
+    function SaveRichMemo(FromIdx, ToIdx: integer; SavePictures: boolean): WideString;
     procedure SaveActivitiesData;
     procedure SetLastRowGridActivities;
+    procedure GetUndoData;
     procedure ShiftBackwardActDates;
     procedure ShiftForwardActDates;
     procedure ShowPasswordInput;
-    procedure SyncDelRec(ReadFile, WriteFile: String);
-    function SyncDelSubjectsNotes(ReadFile, WriteFile: String): Integer;
+    procedure StoreUndoData;
+    procedure SyncDelRec(ReadFile, WriteFile: string);
+    function SyncDelSubjectsNotes(ReadFile, WriteFile: string): integer;
     procedure SyncTitleDateGrid;
-    function SyncUpdateSubjectsNotes(ReadFile, WriteFile: String): Integer;
+    function SyncUpdateSubjectsNotes(ReadFile, WriteFile: string): integer;
     procedure Translation;
     procedure CompactLines(NumRow: integer; Cod: integer);
     procedure DeleteRow(aRow: integer);
@@ -575,112 +589,123 @@ type
     procedure WriteWbs;
     procedure ZoomDecrease;
     procedure ZoomIncrease;
-      { private declarations }
+    { private declarations }
   public
-      { public declarations }
-      // Messages dialogs
-      msg001, msg002, msg003, msg004, msg005, msg006, msg007, msg008, msg009,
-      msg010, msg011, msg012, msg013, msg014, msg015, msg016, msg017, msg018,
-      msg019, msg020, msg021, msg022, msg023, msg024, msg025, msg026, msg027,
-      msg028, msg029, msg030, msg031, msg032, msg033, msg034, msg035, msg036,
-      msg037, msg038, msg039, msg040, msg041, msg042, msg043, msg044, msg045,
-      msg046, msg047, msg048, msg049, msg050, msg051, msg052, msg053, msg054,
-      msg055, msg056, msg057, msg058, msg059, msg060, msg061, msg062, msg063,
-      msg064, msg065, msg066, msg067, msg068, msg069, msg070, msg071, msg072,
-      msg073, msg074, msg075, msg076, msg077, msg078, msg079, msg080,
-      // Status bar messages
-      sbr001, sbr002, sbr003, sbr004, sbr005, sbr006, sbr007, sbr008, sbr009,
-      sbr010, sbr011,
-      // Various captions and labels modified in the code
-      cpt001, cpt002, cpt003, cpt004, cpt005, cpt006, cpt007, cpt008, cpt009,
-      cpt010, cpt011, cpt012, cpt013, cpt014, cpt015, cpt016, cpt017, cpt018,
-      cpt019, cpt020, cpt021, cpt022, cpt023, cpt024, cpt025, cpt026, cpt027,
-      cpt028, cpt029, cpt030, cpt031, cpt032, cpt033, cpt034, cpt035, cpt036,
-      cpt037, cpt038, cpt039, cpt040, cpt041, cpt042, cpt043, cpt044, cpt045,
-      cpt046, cpt047, cpt048, cpt049, cpt050, cpt051, cpt052, cpt053, cpt054,
-      cpt055, cpt056, cpt057, cpt058, cpt059, cpt060, cpt061, cpt062, cpt063,
-      cpt064, cpt065, cpt066, cpt067, cpt068, cpt069, cpt070, cpt071, cpt072,
-      cpt073, cpt074, cpt075, cpt076, cpt077, cpt078, cpt079, cpt080, cpt081,
-      cpt082, cpt083, cpt084, cpt085, cpt086, cpt087, cpt088, cpt089, cpt090,
-      cpt091, cpt092, cpt093, cpt094,
-      cmn001, cmn002, cmn003, cmn004, cmn005, cmn006, cmn007, cmn008, cmn009,
-      cmn010, cmn011, cmn012, cdn001, cdn002, cdn003, cdn004, cdn005, cdn006,
-      cdn007: ShortString;
-      // String to check if the password is correct
-      PwdCheckString: String;
-      // Flag autosync
-      flAutosync: Boolean;
-      // Flag tray icon
-      flTrayIcon: Boolean;
-      // Flag no sync message
-      flNoSyncMsg: Boolean;
-      // Flag no char count
-      flNoCharCount: Boolean;
-      // Transparency
-      TranspForm: Integer;
-      // Folder with other db to sync
-      SyncFolder: String;
-      // Default font size
-      DefFontSize: Integer;
-      // Default font name
-      DefFontName: String;
-      // Open last file
-      flOpenLastFile: Boolean;
-      // Activity group
-      ActivityGroup: TStringList;
-      // Default font and background color
-      stColFont1: String;
-      stColBack1: String;
-      stColFont2: String;
-      stColBack2: String;
-      stColFont3: String;
-      stColback3: String;
-      // Date order
-      DateOrder: ShortString;
+    { public declarations }
+    // Messages dialogs
+    msg001, msg002, msg003, msg004, msg005, msg006, msg007, msg008,
+    msg009, msg010, msg011, msg012, msg013, msg014, msg015, msg016,
+    msg017, msg018, msg019, msg020, msg021, msg022, msg023, msg024,
+    msg025, msg026, msg027, msg028, msg029, msg030, msg031, msg032,
+    msg033, msg034, msg035, msg036, msg037, msg038, msg039, msg040,
+    msg041, msg042, msg043, msg044, msg045, msg046, msg047, msg048,
+    msg049, msg050, msg051, msg052, msg053, msg054, msg055, msg056,
+    msg057, msg058, msg059, msg060, msg061, msg062, msg063, msg064,
+    msg065, msg066, msg067, msg068, msg069, msg070, msg071, msg072,
+    msg073, msg074, msg075, msg076, msg077, msg078, msg079, msg080,
+    msg081, msg082,
+    // Status bar messages
+    sbr001, sbr002, sbr003, sbr004, sbr005, sbr006, sbr007, sbr008,
+    sbr009, sbr010, sbr011,
+    // Various captions and labels modified in the code
+    cpt001, cpt002, cpt003, cpt004, cpt005, cpt006, cpt007, cpt008,
+    cpt009, cpt010, cpt011, cpt012, cpt013, cpt014, cpt015, cpt016,
+    cpt017, cpt018, cpt019, cpt020, cpt021, cpt022, cpt023, cpt024,
+    cpt025, cpt026, cpt027, cpt028, cpt029, cpt030, cpt031, cpt032,
+    cpt033, cpt034, cpt035, cpt036, cpt037, cpt038, cpt039, cpt040,
+    cpt041, cpt042, cpt043, cpt044, cpt045, cpt046, cpt047, cpt048,
+    cpt049, cpt050, cpt051, cpt052, cpt053, cpt054, cpt055, cpt056,
+    cpt057, cpt058, cpt059, cpt060, cpt061, cpt062, cpt063, cpt064,
+    cpt065, cpt066, cpt067, cpt068, cpt069, cpt070, cpt071, cpt072,
+    cpt073, cpt074, cpt075, cpt076, cpt077, cpt078, cpt079, cpt080,
+    cpt081, cpt082, cpt083, cpt084, cpt085, cpt086, cpt087, cpt088,
+    cpt089, cpt090, cpt091, cpt092, cpt093, cpt094, cpt095, cpt096,
+    cpt097, cpt098, cpt099, cmn001, cmn002, cmn003, cmn004, cmn005,
+    cmn006, cmn007, cmn008, cmn009, cmn010, cmn011, cmn012, cdn001,
+    cdn002, cdn003, cdn004, cdn005, cdn006, cdn007: ShortString;
+    // String to check if the password is correct
+    PwdCheckString: string;
+    // Flag autosync
+    flAutosync: boolean;
+    // Flag tray icon
+    flTrayIcon: boolean;
+    // Flag no sync message
+    flNoSyncMsg: boolean;
+    // Flag no char count
+    flNoCharCount: boolean;
+    // Flag no autosave
+    flNoAutosave: boolean;
+    // Transparency
+    TranspForm: integer;
+    // Folder with other db to sync
+    SyncFolder: string;
+    // Default font size
+    DefFontSize: integer;
+    // Default font name
+    DefFontName: string;
+    // Space between paragraph
+    ParagraphSpace: integer;
+    // Line within paragraph
+    LineSpace: integer;
+    // Open last file
+    flOpenLastFile: boolean;
+    // Activity group
+    ActivityGroup: TStringList;
+    // Default font and background color
+    stColFont1: string;
+    stColBack1: string;
+    stColFont2: string;
+    stColBack2: string;
+    stColFont3: string;
+    stColback3: string;
+    // Date order
+    DateOrder: ShortString;
+    // 24 hour format
+    fl24Hour: boolean;
   end;
 
 var
   fmMain: TfmMain;
   // Version of the software for translation file
-  VersMyNt: String = '1.3.1';
+  VersMyNt: string = '1.4.0';
   // Last Database used
-  LastDatabase1, LastDatabase2, LastDatabase3, LastDatabase4: String;
+  LastDatabase1, LastDatabase2, LastDatabase3, LastDatabase4: string;
   // Delay (in days) before purging a record from the deleted record table
   DelayDays: TDate = 180;
   // Filter of sdSaveDialog (useful to save in MyNotex and HTML)
-  OpenSaveDlgFilter: String;
+  OpenSaveDlgFilter: string;
   // RichMemo is modified by user
-  IsMemoModified: Boolean = False;
+  IsMemoModified: boolean = False;
   // The file in use is modified
-  flFileChanged: Boolean = False;
+  flFileChanged: boolean = False;
   // Tags list must be recrated;
-  RecreateTagsList: Boolean = False;
+  RecreateTagsList: boolean = False;
   // Saved value of tags (sqNotes does not support OldValue)
-  OldTagsValue: String;
+  OldTagsValue: string;
   // Text must be loaded
-  IsTextToLoad: Boolean = True;
+  IsTextToLoad: boolean = True;
   // Confirm for creating a new subject
-  ConfirmNewSubject: Boolean = True;
+  ConfirmNewSubject: boolean = True;
   // Windows of the main form maximized or not
-  FmMaximized: Boolean;
+  FmMaximized: boolean;
   // Default width of the Search grid visible columns
-  WidthSubCol: Integer = 300;
-  WidthNoteCol: Integer = 300;
-  WidthDateCol: Integer = 150;
+  WidthSubCol: integer = 300;
+  WidthNoteCol: integer = 300;
+  WidthDateCol: integer = 150;
   //List of Bookmarks
   BookmarkList: TStringList;
   // Indentation: 50 because the first tab
   // is set to 50 in the RichMemo component
-  WidthInden: Integer = 50;
+  WidthInden: integer = 50;
   // Left margin of the text set to 15 in the RichMemo component
-  DefaultIndent: Integer = 15;
+  DefaultIndent: integer = 15;
   // Zoom font size
-  ZoomFontSize: ShortInt = 0;
+  ZoomFontSize: shortint = 0;
   // Installation directory
-  // (only to let the language file to be installed automatically)
-  InstallDir: String = '/opt/mynotex/';
+  // (useful only to let the language file to be installed automatically)
+  InstallDir: string = '/opt/mynotex/';
   // Show error messages for debug
-  ShowErrorMsg: Boolean = False;
+  ShowErrorMsg: boolean = False;
   // Activities grid
   LastRowAct: integer = 1; // Last used row
   ColID: integer = 0;
@@ -700,18 +725,24 @@ var
   FDate: TFormatSettings;
   DateMask: ShortString;
   // Labels of the activity grid
-  lbID: String = 'ID';
-  lbWbs: String = 'WBS';
-  lbState: String = 'State';
-  lbActivity: String = 'Activity';
-  lbStartDate: String = 'Start date';
-  lbEndDate: String = 'End date';
-  lbDuration: String = 'Duration';
-  lbResources: String = 'Resources';
-  lbPriority: String = 'Priority';
-  lbCompletion: String = 'Completion';
-  lbCost: String = 'Cost';
-  lbNotes: String = 'Notes';
+  lbID: string = 'ID';
+  lbWbs: string = 'WBS';
+  lbState: string = 'State';
+  lbActivity: string = 'Activity';
+  lbStartDate: string = 'Start date';
+  lbEndDate: string = 'End date';
+  lbDuration: string = 'Duration';
+  lbResources: string = 'Resources';
+  lbPriority: string = 'Priority';
+  lbCompletion: string = 'Completion';
+  lbCost: string = 'Cost';
+  lbNotes: string = 'Notes';
+  // Note text cursor position, for undo
+  iNoteTextPos: integer = 0;
+  // Mail for pgp encryption
+  stRecipient: string = '';
+  // Attachments label
+  stAttachments: string = 'Attachments';
 
 const
   // Activities grid costants
@@ -720,14 +751,16 @@ const
 
 implementation
 
-uses Unit2, Unit3, Unit4, Unit5, Unit6, Unit7, Unit8, Unit9, UnitCopyright;
+uses Unit2, Unit3, Unit4, Unit5, Unit6, Unit7, Unit8, Unit9, Unit10,
+  Unit11, UnitCopyright;
 
 { TfmMain }
 
 procedure TfmMain.FormCreate(Sender: TObject);
-  Var MyIni: TIniFile;
-  myHomeDir: String;
-  i: Integer;
+var
+  MyIni: TIniFile;
+  myHomeDir: string;
+  i: integer;
 begin
   // Set string to check if password is correct
   PwdCheckString := 'jFd7W0kSmè!=F73Nml<aTegYtDjFXbnGq28' +
@@ -740,6 +773,8 @@ begin
   flNoSyncMsg := False;
   // Flag no char count
   flNoCharCount := False;
+  // Flag no autosave
+  flNoAutosave := False;
   // Transparency
   TranspForm := 255;
   // Folder with other db to sync
@@ -748,6 +783,10 @@ begin
   DefFontSize := 11;
   // Default font name
   DefFontName := 'Sans';
+  // Paragraph space
+  ParagraphSpace := 0;
+  // Line space
+  LineSpace := 0;
   // Open last file
   flOpenLastFile := False;
   //Initialize clipboard for activities
@@ -760,7 +799,8 @@ begin
   grSubjects.FocusRectVisible := False;
   grSubjects.FixedColor := clBtnFace;
   // Titles grid
-  with grTitles do begin
+  with grTitles do
+  begin
     Clear;
     FocusRectVisible := False;
     for i := 0 to 6 do
@@ -821,23 +861,30 @@ begin
   cbFindKind.ItemIndex := 0;
   dtCalAct.Date := Date;
   dbSubComm.Color := clForm;
+  lbTagsNames.Color := clForm;
+  meSearchCond.Color := clForm;
+  fl24Hour := False;
   // Set home directory and data directories
   myHomeDir := GetEnvironmentVariable('HOME') + '/.config';
   if DirectoryExists(myHomeDir + DirectorySeparator + 'mynotex' +
-    DirectorySeparator) = False then begin
-    CreateDirUTF8(myHomeDir + DirectorySeparator + 'mynotex' + DirectorySeparator)
+    DirectorySeparator) = False then
+  begin
+    CreateDirUTF8(myHomeDir + DirectorySeparator + 'mynotex' + DirectorySeparator);
   end;
   // Load main form dimensions from ini file
   if FileExists(myHomeDir + DirectorySeparator + 'mynotex' +
-    DirectorySeparator + 'mynotex') then begin
+    DirectorySeparator + 'mynotex') then
+  begin
     MyIni := TIniFile.Create(myHomeDir + DirectorySeparator + 'mynotex' +
       DirectorySeparator + 'mynotex');
     try
-      if MyIni.ReadString('mynotex','maximize','') = 'true' then begin
+      if MyIni.ReadString('mynotex', 'maximize', '') = 'true' then
+      begin
         fmMain.WindowState := wsMaximized;
         FmMaximized := True;
       end
-      else begin
+      else
+      begin
         FmMaximized := False;
         fmMain.Top := MyIni.ReadInteger('mynotex', 'top', 0);
         fmMain.Left := MyIni.ReadInteger('mynotex', 'left', 0);
@@ -860,15 +907,19 @@ begin
         grActGrid.FixedColor := fmMain.Color;
         grFilter.FixedColor := fmMain.Color;
         dbSubComm.Color := fmMain.Color;
+        lbTagsNames.Color := fmMain.Color;
+        meSearchCond.Color := fmMain.Color;
       end;
       cbFindKind.ItemIndex := MyIni.ReadInteger('mynotex', 'findkind', 0);
       // The color of the other forms is set on their create event
       pnGridSubjects.Width := MyIni.ReadInteger('mynotex', 'grsubwidth', 0);
-      grTitles.Width := MyIni.ReadInteger('mynotex', 'grtitwidth', 0);
+      pnSubNotesGrid.Width := MyIni.ReadInteger('mynotex', 'grtitwidth', 0);
       grTitles.ColWidths[1] := MyIni.ReadInteger('mynotex', 'grtitcol0width', 250);
       grTitles.ColWidths[2] := MyIni.ReadInteger('mynotex', 'grtitcol1width', 150);
-      pnAttachments.Width := MyIni.ReadInteger('mynotex', 'grattwidth', 0);
+      pnAttachments.Width := MyIni.ReadInteger('mynotex', 'grattwidth', 200);
+      pnAttList.Width := MyIni.ReadInteger('mynotex', 'attlist', 200);
       pnActivities.Height := MyIni.ReadInteger('mynotex', 'actheigth', 0);
+      pnFind.Height := MyIni.ReadInteger('mynotex', 'find', 120);
       // Set values of font kind and color buttons
       fdFontSelDialog.Font.Name := MyIni.ReadString('mynotex', 'selfontname', '');
       fdFontSelDialog.Font.Size := MyIni.ReadInteger('mynotex', 'selfontsize', 11);
@@ -881,127 +932,159 @@ begin
       if MyIni.ReadInteger('mynotex', 'selfontstrike', 0) = 1 then
         fdFontSelDialog.Font.Style := fdFontSelDialog.Font.Style + [fsStrikeOut];
       fdColorFormatting.Color := MyIni.ReadInteger('mynotex', 'selfontcolor', 0);
-      fdBackColorFormatting.Color := MyIni.ReadInteger('mynotex',
-        'selbackfontcolor', 65535); //clYellow
+      fdBackColorFormatting.Color :=
+        MyIni.ReadInteger('mynotex', 'selbackfontcolor', 65535); //clYellow
       tbOpenNote.Tag := MyIni.ReadInteger('mynotex', 'wordprocessor', 0);
-      WidthSubCol := MyIni.ReadInteger('mynotex','grfindcol1width', 300);
-      WidthNoteCol := MyIni.ReadInteger('mynotex','grfindcol3width', 300);
-      WidthDateCol := MyIni.ReadInteger('mynotex','grfindcol4width', 150);
-      with grActGrid do begin
-        if MyIni.ReadInteger('mynotex','gract1width', 0) > 10 then
-          ColWidths[ColWbs] := MyIni.ReadInteger('mynotex','gract1width', 80);
-        if MyIni.ReadInteger('mynotex','gract2width', 0) > 10 then
-          ColWidths[ColState] := MyIni.ReadInteger('mynotex','gract2width', 100);
-        if MyIni.ReadInteger('mynotex','gract3width', 0) > 10 then
-          ColWidths[ColName] := MyIni.ReadInteger('mynotex','gract3width', 320);
-        if MyIni.ReadInteger('mynotex','gract4width', 0) > 10 then
-          ColWidths[ColStartDate] := MyIni.ReadInteger('mynotex','gract4width', 180);
-        if MyIni.ReadInteger('mynotex','gract5width', 0) > 10 then
-          ColWidths[ColEndDate] := MyIni.ReadInteger('mynotex','gract5width', 180);
-        if MyIni.ReadInteger('mynotex','gract6width', 0) > 10 then
-          ColWidths[ColDuration] := MyIni.ReadInteger('mynotex','gract6width', 100);
-        if MyIni.ReadInteger('mynotex','gract7width', 0) > 10 then
-          ColWidths[ColResources] := MyIni.ReadInteger('mynotex','gract7width', 250);
-        if MyIni.ReadInteger('mynotex','gract8width', 0) > 10 then
-          ColWidths[ColPriority] := MyIni.ReadInteger('mynotex','gract8width', 100);
-        if MyIni.ReadInteger('mynotex','gract9width', 0) > 10 then
-          ColWidths[ColCompletion] := MyIni.ReadInteger('mynotex','gract9width', 120);
-        if MyIni.ReadInteger('mynotex','gract10width', 0) > 10 then
-          ColWidths[ColCost] := MyIni.ReadInteger('mynotex','gract10width', 100);
+      WidthSubCol := MyIni.ReadInteger('mynotex', 'grfindcol1width', 300);
+      WidthNoteCol := MyIni.ReadInteger('mynotex', 'grfindcol3width', 300);
+      WidthDateCol := MyIni.ReadInteger('mynotex', 'grfindcol4width', 150);
+      with grActGrid do
+      begin
+        if MyIni.ReadInteger('mynotex', 'gract1width', 0) > 10 then
+          ColWidths[ColWbs] := MyIni.ReadInteger('mynotex', 'gract1width', 80);
+        if MyIni.ReadInteger('mynotex', 'gract2width', 0) > 10 then
+          ColWidths[ColState] := MyIni.ReadInteger('mynotex', 'gract2width', 100);
+        if MyIni.ReadInteger('mynotex', 'gract3width', 0) > 10 then
+          ColWidths[ColName] := MyIni.ReadInteger('mynotex', 'gract3width', 320);
+        if MyIni.ReadInteger('mynotex', 'gract4width', 0) > 10 then
+          ColWidths[ColStartDate] := MyIni.ReadInteger('mynotex', 'gract4width', 180);
+        if MyIni.ReadInteger('mynotex', 'gract5width', 0) > 10 then
+          ColWidths[ColEndDate] := MyIni.ReadInteger('mynotex', 'gract5width', 180);
+        if MyIni.ReadInteger('mynotex', 'gract6width', 0) > 10 then
+          ColWidths[ColDuration] := MyIni.ReadInteger('mynotex', 'gract6width', 100);
+        if MyIni.ReadInteger('mynotex', 'gract7width', 0) > 10 then
+          ColWidths[ColResources] := MyIni.ReadInteger('mynotex', 'gract7width', 250);
+        if MyIni.ReadInteger('mynotex', 'gract8width', 0) > 10 then
+          ColWidths[ColPriority] := MyIni.ReadInteger('mynotex', 'gract8width', 100);
+        if MyIni.ReadInteger('mynotex', 'gract9width', 0) > 10 then
+          ColWidths[ColCompletion] := MyIni.ReadInteger('mynotex', 'gract9width', 120);
+        if MyIni.ReadInteger('mynotex', 'gract10width', 0) > 10 then
+          ColWidths[ColCost] := MyIni.ReadInteger('mynotex', 'gract10width', 100);
       end;
+      // Email for pgp encryption
+      if MyIni.ReadString('mynotex', 'email', '') <> '' then
+        stRecipient := MyIni.ReadString('mynotex', 'email', '');
       // Set titles order
-      if MyIni.ReadString('mynotex','suborderby','') = 't' then
+      if MyIni.ReadString('mynotex', 'suborderby', '') = 't' then
         miSubjectOrderTitle.Checked := True
-      else if MyIni.ReadString('mynotex','suborderby','') = 'c' then
+      else if MyIni.ReadString('mynotex', 'suborderby', '') = 'c' then
         miSubjectOrderCustom.Checked := True;
       bnSubUp.Enabled := miSubjectOrderCustom.Checked;
       bnSubDown.Enabled := miSubjectOrderCustom.Checked;
       // Set notes order
-      if MyIni.ReadString('mynotex','orderby','') = 't' then
+      if MyIni.ReadString('mynotex', 'orderby', '') = 't' then
         miOrderByTitle.Checked := True
-      else if MyIni.ReadString('mynotex','orderby','') = 'd' then
+      else if MyIni.ReadString('mynotex', 'orderby', '') = 'd' then
         miOrderByDate.Checked := True
-      else if MyIni.ReadString('mynotex','orderby','') = 'c' then
+      else if MyIni.ReadString('mynotex', 'orderby', '') = 'c' then
         miOrderCustom.Checked := True;
       bnNotesUp.Enabled := miOrderCustom.Checked;
       bnNotesDown.Enabled := miOrderCustom.Checked;
       // Tray icon
-      if MyIni.ReadString('mynotex','trayicon','') = 'y' then
+      if MyIni.ReadString('mynotex', 'trayicon', '') = 'y' then
         flTrayIcon := True;
-      if MyIni.ReadString('mynotex','nosyncmsg','') = 'y' then
+      if MyIni.ReadString('mynotex', 'nosyncmsg', '') = 'y' then
         flNoSyncMsg := True;
-      if MyIni.ReadString('mynotex','nocharcount','') = 'y' then
+      if MyIni.ReadString('mynotex', 'nocharcount', '') = 'y' then
         flNoCharCount := True;
+      if MyIni.ReadString('mynotex', 'noautosave', '') = 'y' then
+        flNoAutosave := True;
       // Autosync
-      if MyIni.ReadString('mynotex','autosync','') = 'y' then
+      if MyIni.ReadString('mynotex', 'autosync', '') = 'y' then
         flAutosync := True;
       // Show grid activities;
-      if MyIni.ReadString('mynotex','showact','') = 'y' then
+      if MyIni.ReadString('mynotex', 'showact', '') = 'y' then
         miNotesShowActivitiesClick(nil);
       // Menu of opened database
-      if MyIni.ReadString('mynotex','lastfile1','') <> '' then begin
-        LastDatabase1 := MyIni.ReadString('mynotex','lastfile1','');
+      if MyIni.ReadString('mynotex', 'lastfile1', '') <> '' then
+      begin
+        LastDatabase1 := MyIni.ReadString('mynotex', 'lastfile1', '');
         miFileOpenLast1.Caption := ExtractFileNameOnly(LastDatabase1);
       end
-      else begin
-        miFileOpenLast1.Visible := False
+      else
+      begin
+        miFileOpenLast1.Visible := False;
       end;
-      if MyIni.ReadString('mynotex','lastfile2','') <> '' then begin
-        LastDatabase2 := MyIni.ReadString('mynotex','lastfile2','');
+      if MyIni.ReadString('mynotex', 'lastfile2', '') <> '' then
+      begin
+        LastDatabase2 := MyIni.ReadString('mynotex', 'lastfile2', '');
         miFileOpenLast2.Caption := ExtractFileNameOnly(LastDatabase2);
       end
-      else begin
-        miFileOpenLast2.Visible := False
+      else
+      begin
+        miFileOpenLast2.Visible := False;
       end;
-      if MyIni.ReadString('mynotex','lastfile3','') <> '' then begin
-        LastDatabase3 := MyIni.ReadString('mynotex','lastfile3','');
+      if MyIni.ReadString('mynotex', 'lastfile3', '') <> '' then
+      begin
+        LastDatabase3 := MyIni.ReadString('mynotex', 'lastfile3', '');
         miFileOpenLast3.Caption := ExtractFileNameOnly(LastDatabase3);
       end
-      else begin
-        miFileOpenLast3.Visible := False
+      else
+      begin
+        miFileOpenLast3.Visible := False;
       end;
-      if MyIni.ReadString('mynotex','lastfile4','') <> '' then begin
-        LastDatabase4 := MyIni.ReadString('mynotex','lastfile4','');
+      if MyIni.ReadString('mynotex', 'lastfile4', '') <> '' then
+      begin
+        LastDatabase4 := MyIni.ReadString('mynotex', 'lastfile4', '');
         miFileOpenLast4.Caption := ExtractFileNameOnly(LastDatabase4);
       end
-      else begin
-        miFileOpenLast4.Visible := False
+      else
+      begin
+        miFileOpenLast4.Visible := False;
       end;
-      if ((miFileOpenLast1.Visible = False) and (miFileOpenLast2.Visible = False)
-        and (miFileOpenLast3.Visible = False) and (miFileOpenLast4.Visible = False)) then begin
-        miLine6.Visible := False
+      if ((miFileOpenLast1.Visible = False) and
+        (miFileOpenLast2.Visible = False) and (miFileOpenLast3.Visible = False) and
+        (miFileOpenLast4.Visible = False)) then
+      begin
+        miLine6.Visible := False;
       end;
       if MyIni.ReadString('mynotex', 'openlast', '') = 'y' then
         flOpenLastFile := True
       else
         flOpenLastFile := False;
-      if MyIni.ReadString('mynotex','syncfolder','') <> '' then begin
-        SyncFolder := MyIni.ReadString('mynotex','syncfolder','')
+      if MyIni.ReadString('mynotex', 'syncfolder', '') <> '' then
+      begin
+        SyncFolder := MyIni.ReadString('mynotex', 'syncfolder', '');
       end;
       // Form transparency
-      if MyIni.ReadInteger('mynotex','transparency', 255) > 0 then
-        TranspForm := MyIni.ReadInteger('mynotex','transparency', 255);
+      if MyIni.ReadInteger('mynotex', 'transparency', 255) > 0 then
+        TranspForm := MyIni.ReadInteger('mynotex', 'transparency', 255);
       // Zoom level
-      if MyIni.ReadInteger('mynotex','zoomfontsize', 0) > 0 then
-        ZoomFontSize := MyIni.ReadInteger('mynotex','zoomfontsize', 0);
+      if MyIni.ReadInteger('mynotex', 'zoomfontsize', 0) > 0 then
+        ZoomFontSize := MyIni.ReadInteger('mynotex', 'zoomfontsize', 0);
+      // Paragraph space
+      if MyIni.ReadInteger('mynotex', 'paragraphspace', 0) > 0 then
+        ParagraphSpace := MyIni.ReadInteger('mynotex', 'paragraphspace', 0);
+      // Line space
+      if MyIni.ReadInteger('mynotex', 'linespace', 0) > 0 then
+        LineSpace := MyIni.ReadInteger('mynotex', 'linespace', 0);
       // Default colors
-      if MyIni.ReadString('mynotex','stcolfont1', '') <> '' then
-        stColFont1 := MyIni.ReadString('mynotex','stcolfont1', '');
-      if MyIni.ReadString('mynotex','stcolfont2', '') <> '' then
-        stColFont2 := MyIni.ReadString('mynotex','stcolfont2', '');
-      if MyIni.ReadString('mynotex','stcolfont3', '') <> '' then
-        stColFont3 := MyIni.ReadString('mynotex','stcolfont3', '');
-      if MyIni.ReadString('mynotex','stcolback1', '') <> '' then
-        stColBack1 := MyIni.ReadString('mynotex','stcolback1', '');
-      if MyIni.ReadString('mynotex','stcolback2', '') <> '' then
-        stColBack2 := MyIni.ReadString('mynotex','stcolback2', '');
-      if MyIni.ReadString('mynotex','stcolback3', '') <> '' then
-        stColBack3 := MyIni.ReadString('mynotex','stcolback3', '');
+      if MyIni.ReadString('mynotex', 'stcolfont1', '') <> '' then
+        stColFont1 := MyIni.ReadString('mynotex', 'stcolfont1', '');
+      if MyIni.ReadString('mynotex', 'stcolfont2', '') <> '' then
+        stColFont2 := MyIni.ReadString('mynotex', 'stcolfont2', '');
+      if MyIni.ReadString('mynotex', 'stcolfont3', '') <> '' then
+        stColFont3 := MyIni.ReadString('mynotex', 'stcolfont3', '');
+      if MyIni.ReadString('mynotex', 'stcolback1', '') <> '' then
+        stColBack1 := MyIni.ReadString('mynotex', 'stcolback1', '');
+      if MyIni.ReadString('mynotex', 'stcolback2', '') <> '' then
+        stColBack2 := MyIni.ReadString('mynotex', 'stcolback2', '');
+      if MyIni.ReadString('mynotex', 'stcolback3', '') <> '' then
+        stColBack3 := MyIni.ReadString('mynotex', 'stcolback3', '');
+      if MyIni.ReadInteger('mynotex', 'firstrun', 0) <> 1 then
+      begin
+        // A greeting message to the new MyNotex users
+        if OpenURL('https://sites.google.com/site/mynotex/firstrun') = True then
+        begin
+          MyIni.WriteInteger('mynotex', 'firstrun', 1);
+        end;
+      end;
     finally
       MyIni.Free;
     end;
   end
-  else begin
+  else
+  begin
     miFileOpenLast1.Visible := False;
     miFileOpenLast2.Visible := False;
     miFileOpenLast3.Visible := False;
@@ -1017,8 +1100,8 @@ begin
   FDate.ShortDateFormat := 'mm-dd-yyyy';
   FDate.LongDateFormat := 'dddd mmmm d yyyy';
   FDate.DateSeparator := '-';
-  dbDate.DateDisplayOrder:= ddoMDY;
-  dtCalAct.DateDisplayOrder:= ddoMDY;
+  dbDate.DateDisplayOrder := ddoMDY;
+  dtCalAct.DateDisplayOrder := ddoMDY;
   DateOrder := 'MDY';
   DateMask := '  -  -    ';
   // Load and activate translation
@@ -1035,22 +1118,22 @@ begin
     DirectoryExistsUTF8(GetEnvironmentVariable('HOME') + DirectorySeparator +
     '.local/share/gnote');
   // Enable or disable user manual menu
-  if FileExists(InstallDir + 'manual-mynotex-en.pdf') = False then begin
+  if FileExists(InstallDir + 'manual-mynotex-en.pdf') = False then
+  begin
     miHelp.Visible := False;
     miLineHelp.Visible := False;
   end;
 end;
 
-procedure TfmMain.FormDragOver(Sender, Source: TObject; X, Y: Integer;
-  State: TDragState; var Accept: Boolean);
+procedure TfmMain.FormDragOver(Sender, Source: TObject; X, Y: integer;
+  State: TDragState; var Accept: boolean);
 begin
   // Check if a file can be dropped
   // This function actually does not work; maybe in the future...
   Accept := miAttachNew.Enabled = True;
 end;
 
-procedure TfmMain.FormDropFiles(Sender: TObject;
-  const FileNames: array of String);
+procedure TfmMain.FormDropFiles(Sender: TObject; const FileNames: array of string);
 begin
   // Attach dropped files
   if miAttachNew.Enabled = True then
@@ -1060,23 +1143,28 @@ end;
 procedure TfmMain.FormShow(Sender: TObject);
 begin
   // Open files with double clic or by console (-l to open the last archive)
-  if sqSubjects.Active = False then begin
-    if Application.Params[1] <> '' then begin
-      if Application.Params[1] = '-l' then begin
+  if sqSubjects.Active = False then
+  begin
+    if Application.Params[1] <> '' then
+    begin
+      if Application.Params[1] = '-l' then
+      begin
         if LastDatabase1 <> '' then
-          OpenDataTables(LastDatabase1)
+          OpenDataTables(LastDatabase1);
       end
       else if Application.Params[1] = '-debug' then
         ShowErrorMsg := True
       else
         OpenDataTables(Application.Params[1]);
     end
-    else if flOpenLastFile = True then begin
+    else if flOpenLastFile = True then
+    begin
       if LastDatabase1 <> '' then
-        OpenDataTables(LastDatabase1)
+        OpenDataTables(LastDatabase1);
     end;
     // Set Transparency
-    if TranspForm < 255 then begin
+    if TranspForm < 255 then
+    begin
       fmMain.AlphaBlendValue := TranspForm;
       fmImpExp.AlphaBlendValue := TranspForm;
       fmMoveNote.AlphaBlendValue := TranspForm;
@@ -1085,20 +1173,22 @@ begin
       fmResizeImage.AlphaBlendValue := TranspForm;
       fmLook.AlphaBlendValue := TranspForm;
       fmCalendar.AlphaBlendValue := TranspForm;
+      fmSetAlarm.AlphaBlendValue := TranspForm;
       fmOptions.AlphaBlendValue := TranspForm;
-      fmCopyright.AlphaBlendValue := TranspForm;
-   end;
+    end;
   end;
   // Set tray icon
-  if flTrayIcon = True then begin
+  if flTrayIcon = True then
+  begin
     fmMain.tiTrayIcon.Visible := True;
     fmMain.ShowInTaskBar := stNever;
   end;
 end;
 
 procedure TfmMain.FormClose(Sender: TObject; var CloseAction: TCloseAction);
-var MyIni: TIniFile;
-  myHomeDir: String;
+var
+  MyIni: TIniFile;
+  myHomeDir: string;
 begin
   // Save all data
   SaveAllData;
@@ -1115,10 +1205,12 @@ begin
   try
     MyIni := TIniFile.Create(myHomeDir + DirectorySeparator + 'mynotex' +
       DirectorySeparator + 'mynotex');
-    if fmMain.WindowState = wsMaximized then begin
-      MyIni.WriteString('mynotex','maximize','true')
+    if fmMain.WindowState = wsMaximized then
+    begin
+      MyIni.WriteString('mynotex', 'maximize', 'true');
     end
-    else begin
+    else
+    begin
       MyIni.WriteString('mynotex', 'maximize', 'false');
       MyIni.WriteInteger('mynotex', 'top', fmMain.Top);
       MyIni.WriteInteger('mynotex', 'left', fmMain.Left);
@@ -1139,17 +1231,21 @@ begin
     MyIni.WriteInteger('mynotex', 'selbackfontcolor', fdBackColorFormatting.Color);
     MyIni.WriteInteger('mynotex', 'wordprocessor', tbOpenNote.Tag);
     // Set various width
-    if grSubjects.Width < 10 then begin
-      MyIni.WriteInteger('mynotex', 'grsubwidth', 50)
+    if pnGridSubjects.Width < 10 then
+    begin
+      MyIni.WriteInteger('mynotex', 'grsubwidth', 50);
     end
-    else begin
-      MyIni.WriteInteger('mynotex', 'grsubwidth', grSubjects.Width);
+    else
+    begin
+      MyIni.WriteInteger('mynotex', 'grsubwidth', pnGridSubjects.Width);
     end;
-    if grTitles.Width < 10 then begin
-      MyIni.WriteInteger('mynotex','grtitwidth', 50)
+    if pnSubNotesGrid.Width < 10 then
+    begin
+      MyIni.WriteInteger('mynotex', 'grtitwidth', 50);
     end
-    else begin
-      MyIni.WriteInteger('mynotex','grtitwidth', grTitles.Width);
+    else
+    begin
+      MyIni.WriteInteger('mynotex', 'grtitwidth', pnSubNotesGrid.Width);
     end;
     if grTitles.ColWidths[1] < 10 then
       MyIni.WriteInteger('mynotex', 'grtitcol0width', 50)
@@ -1159,142 +1255,184 @@ begin
       MyIni.WriteInteger('mynotex', 'grtitcol1width', 50)
     else
       MyIni.WriteInteger('mynotex', 'grtitcol1width', grTitles.ColWidths[2]);
-    if pnAttachments.Width < 10 then begin
-      MyIni.WriteInteger('mynotex','grattwidth', 50)
+    if pnAttachments.Width < 0 then
+    begin
+      MyIni.WriteInteger('mynotex', 'grattwidth', 200);
     end
-    else begin
-      MyIni.WriteInteger('mynotex','grattwidth', pnAttachments.Width);
+    else
+    begin
+      MyIni.WriteInteger('mynotex', 'grattwidth', pnAttachments.Width);
     end;
-    if pnActivities.Height < 100 then begin
-      MyIni.WriteInteger('mynotex','actheigth', 100)
+    if pnAttList.Width < 100 then
+    begin
+      MyIni.WriteInteger('mynotex', 'attlist', 200);
     end
-    else begin
-      MyIni.WriteInteger('mynotex','actheigth', pnActivities.Height);
+    else
+    begin
+      MyIni.WriteInteger('mynotex', 'attlist', pnAttList.Width);
     end;
-    pnActivities.Height := MyIni.ReadInteger('mynotex', 'actheigth', 0);
+    if pnActivities.Height < 100 then
+    begin
+      MyIni.WriteInteger('mynotex', 'actheigth', 100);
+    end
+    else
+    begin
+      MyIni.WriteInteger('mynotex', 'actheigth', pnActivities.Height);
+    end;
+    if pnFind.Height < 120 then
+    begin
+      MyIni.WriteInteger('mynotex', 'find', 120);
+    end
+    else
+    begin
+      MyIni.WriteInteger('mynotex', 'find', pnFind.Height);
+    end;
     // Save the width of the Search grid
     if WidthSubCol < 10 then
-      MyIni.WriteInteger('mynotex','grfindcol1width', 10)
+      MyIni.WriteInteger('mynotex', 'grfindcol1width', 10)
     else
-      MyIni.WriteInteger('mynotex','grfindcol1width', WidthSubCol);
+      MyIni.WriteInteger('mynotex', 'grfindcol1width', WidthSubCol);
     if WidthNoteCol < 10 then
-      MyIni.WriteInteger('mynotex','grfindcol3width', 10)
+      MyIni.WriteInteger('mynotex', 'grfindcol3width', 10)
     else
-      MyIni.WriteInteger('mynotex','grfindcol3width', WidthNoteCol);
+      MyIni.WriteInteger('mynotex', 'grfindcol3width', WidthNoteCol);
     if WidthDateCol < 10 then
-      MyIni.WriteInteger('mynotex','grfindcol4width', 10)
+      MyIni.WriteInteger('mynotex', 'grfindcol4width', 10)
     else
-      MyIni.WriteInteger('mynotex','grfindcol4width', WidthDateCol);
+      MyIni.WriteInteger('mynotex', 'grfindcol4width', WidthDateCol);
     // Save activity grid
-    with grActGrid do begin
+    with grActGrid do
+    begin
       if ColWidths[ColWbs] < 10 then
-        MyIni.WriteInteger('mynotex','gract1width', 10)
+        MyIni.WriteInteger('mynotex', 'gract1width', 10)
       else
-        MyIni.WriteInteger('mynotex','gract1width', ColWidths[ColWbs]);
+        MyIni.WriteInteger('mynotex', 'gract1width', ColWidths[ColWbs]);
       if ColWidths[ColState] < 10 then
-        MyIni.WriteInteger('mynotex','gract2width', 10)
+        MyIni.WriteInteger('mynotex', 'gract2width', 10)
       else
-        MyIni.WriteInteger('mynotex','gract2width', ColWidths[ColState]);
+        MyIni.WriteInteger('mynotex', 'gract2width', ColWidths[ColState]);
       if ColWidths[ColName] < 10 then
-        MyIni.WriteInteger('mynotex','gract3width', 10)
+        MyIni.WriteInteger('mynotex', 'gract3width', 10)
       else
-        MyIni.WriteInteger('mynotex','gract3width', ColWidths[ColName]);
+        MyIni.WriteInteger('mynotex', 'gract3width', ColWidths[ColName]);
       if ColWidths[ColStartDate] < 10 then
-        MyIni.WriteInteger('mynotex','gract4width', 10)
+        MyIni.WriteInteger('mynotex', 'gract4width', 10)
       else
-        MyIni.WriteInteger('mynotex','gract4width', ColWidths[ColStartDate]);
+        MyIni.WriteInteger('mynotex', 'gract4width', ColWidths[ColStartDate]);
       if ColWidths[ColEndDate] < 10 then
-        MyIni.WriteInteger('mynotex','gract5width', 10)
+        MyIni.WriteInteger('mynotex', 'gract5width', 10)
       else
-        MyIni.WriteInteger('mynotex','gract5width', ColWidths[ColEndDate]);
+        MyIni.WriteInteger('mynotex', 'gract5width', ColWidths[ColEndDate]);
       if ColWidths[ColDuration] < 10 then
-        MyIni.WriteInteger('mynotex','gract6width', 10)
+        MyIni.WriteInteger('mynotex', 'gract6width', 10)
       else
-        MyIni.WriteInteger('mynotex','gract6width', ColWidths[ColDuration]);
+        MyIni.WriteInteger('mynotex', 'gract6width', ColWidths[ColDuration]);
       if ColWidths[ColResources] < 10 then
-        MyIni.WriteInteger('mynotex','gract7width', 10)
+        MyIni.WriteInteger('mynotex', 'gract7width', 10)
       else
-        MyIni.WriteInteger('mynotex','gract7width', ColWidths[ColResources]);
+        MyIni.WriteInteger('mynotex', 'gract7width', ColWidths[ColResources]);
       if ColWidths[ColPriority] < 10 then
-        MyIni.WriteInteger('mynotex','gract8width', 10)
+        MyIni.WriteInteger('mynotex', 'gract8width', 10)
       else
-        MyIni.WriteInteger('mynotex','gract8width', ColWidths[ColPriority]);
+        MyIni.WriteInteger('mynotex', 'gract8width', ColWidths[ColPriority]);
       if ColWidths[ColCompletion] < 10 then
-        MyIni.WriteInteger('mynotex','gract9width', 10)
+        MyIni.WriteInteger('mynotex', 'gract9width', 10)
       else
-        MyIni.WriteInteger('mynotex','gract9width', ColWidths[ColCompletion]);
+        MyIni.WriteInteger('mynotex', 'gract9width', ColWidths[ColCompletion]);
       if ColWidths[ColCost] < 10 then
-        MyIni.WriteInteger('mynotex','gract10width', 10)
+        MyIni.WriteInteger('mynotex', 'gract10width', 10)
       else
-        MyIni.WriteInteger('mynotex','gract10width', ColWidths[ColCost]);
+        MyIni.WriteInteger('mynotex', 'gract10width', ColWidths[ColCost]);
     end;
+    // Email for pgp encryption
+    if stRecipient <> '' then
+      MyIni.WriteString('mynotex', 'email', stRecipient);
     // Save titles order
     if miSubjectOrderTitle.Checked = True then
-      MyIni.WriteString('mynotex','suborderby','t')
+      MyIni.WriteString('mynotex', 'suborderby', 't')
     else if miSubjectOrderCustom.Checked = True then
-      MyIni.WriteString('mynotex','suborderby','c');
+      MyIni.WriteString('mynotex', 'suborderby', 'c');
     // Save notes order
-    if  miOrderByTitle.Checked = True then
-      MyIni.WriteString('mynotex','orderby','t')
+    if miOrderByTitle.Checked = True then
+      MyIni.WriteString('mynotex', 'orderby', 't')
     else if miOrderByDate.Checked = True then
-      MyIni.WriteString('mynotex','orderby','d')
+      MyIni.WriteString('mynotex', 'orderby', 'd')
     else if miOrderCustom.Checked = True then
-      MyIni.WriteString('mynotex','orderby','c');
+      MyIni.WriteString('mynotex', 'orderby', 'c');
     // Tray icon
     if flTrayIcon = True then
-      MyIni.WriteString('mynotex','trayicon','y')
+      MyIni.WriteString('mynotex', 'trayicon', 'y')
     else
-      MyIni.WriteString('mynotex','trayicon','n');
+      MyIni.WriteString('mynotex', 'trayicon', 'n');
     // No sync message
     if flNoSyncMsg = True then
-      MyIni.WriteString('mynotex','nosyncmsg', 'y')
+      MyIni.WriteString('mynotex', 'nosyncmsg', 'y')
     else
-      MyIni.WriteString('mynotex','nosyncmsg', 'n');
+      MyIni.WriteString('mynotex', 'nosyncmsg', 'n');
     // No char count
     if flNoCharCount = True then
-      MyIni.WriteString('mynotex','nocharcount', 'y')
+      MyIni.WriteString('mynotex', 'nocharcount', 'y')
     else
-      MyIni.WriteString('mynotex','nocharcount', 'n');
+      MyIni.WriteString('mynotex', 'nocharcount', 'n');
+    // No autosave
+    if flNoAutosave = True then
+      MyIni.WriteString('mynotex', 'noautosave', 'y')
+    else
+      MyIni.WriteString('mynotex', 'noautosave', 'n');
     // Autosync
     if flAutosync = True then
-      MyIni.WriteString('mynotex','autosync','y')
+      MyIni.WriteString('mynotex', 'autosync', 'y')
     else
-      MyIni.WriteString('mynotex','autosync','n');
+      MyIni.WriteString('mynotex', 'autosync', 'n');
     // Show grid activities
     if miNotesShowActivities.Checked = True then
-      MyIni.WriteString('mynotex','showact','y')
+      MyIni.WriteString('mynotex', 'showact', 'y')
     else
-      MyIni.WriteString('mynotex','showact','n');
-    if LastDatabase1 <> '' then begin
-      MyIni.WriteString('mynotex', 'lastfile1', LastDatabase1)
+      MyIni.WriteString('mynotex', 'showact', 'n');
+    if LastDatabase1 <> '' then
+    begin
+      MyIni.WriteString('mynotex', 'lastfile1', LastDatabase1);
     end;
-    if LastDatabase2 <> '' then begin
-      MyIni.WriteString('mynotex', 'lastfile2', LastDatabase2)
+    if LastDatabase2 <> '' then
+    begin
+      MyIni.WriteString('mynotex', 'lastfile2', LastDatabase2);
     end;
-    if LastDatabase3 <> '' then begin
-      MyIni.WriteString('mynotex', 'lastfile3', LastDatabase3)
+    if LastDatabase3 <> '' then
+    begin
+      MyIni.WriteString('mynotex', 'lastfile3', LastDatabase3);
     end;
-    if LastDatabase4 <> '' then begin
-      MyIni.WriteString('mynotex', 'lastfile4', LastDatabase4)
+    if LastDatabase4 <> '' then
+    begin
+      MyIni.WriteString('mynotex', 'lastfile4', LastDatabase4);
     end;
     if flOpenLastFile = True then
       MyIni.WriteString('mynotex', 'openlast', 'y')
     else
       MyIni.WriteString('mynotex', 'openlast', 'n');
-    if SyncFolder <> '' then begin
-      MyIni.WriteString('mynotex', 'syncfolder', SyncFolder)
+    if SyncFolder <> '' then
+    begin
+      MyIni.WriteString('mynotex', 'syncfolder', SyncFolder);
     end;
     // Form transparency
-    MyIni.WriteInteger('mynotex','transparency', TranspForm);
+    MyIni.WriteInteger('mynotex', 'transparency', TranspForm);
     // Zoom level
-    MyIni.WriteInteger('mynotex','zoomfontsize', ZoomFontSize);
+    MyIni.WriteInteger('mynotex', 'zoomfontsize', ZoomFontSize);
+    // Space between paragraph
+    MyIni.WriteInteger('mynotex', 'paragraphspace', ParagraphSpace);
+    // Line within paragraph
+    MyIni.WriteInteger('mynotex', 'linespace', LineSpace);
     // Default colors
-    MyIni.WriteString('mynotex','stcolfont1', stColFont1);
-    MyIni.WriteString('mynotex','stcolfont2', stColFont2);
-    MyIni.WriteString('mynotex','stcolfont3', stColFont3);
-    MyIni.WriteString('mynotex','stcolback1', stColBack1);
-    MyIni.WriteString('mynotex','stcolback2', stColBack2);
-    MyIni.WriteString('mynotex','stcolback3', stColBack1);
+    MyIni.WriteString('mynotex', 'stcolfont1', stColFont1);
+    MyIni.WriteString('mynotex', 'stcolfont2', stColFont2);
+    MyIni.WriteString('mynotex', 'stcolfont3', stColFont3);
+    MyIni.WriteString('mynotex', 'stcolback1', stColBack1);
+    MyIni.WriteString('mynotex', 'stcolback2', stColBack2);
+    MyIni.WriteString('mynotex', 'stcolback3', stColBack1);
+    // Delete possibile file MyNotexFile.html in tmp
+    if FileExistsUTF8(GetTempDir + DirectorySeparator + 'MyNotexFile.html') then
+    begin
+      DeleteFileUTF8(GetTempDir + DirectorySeparator + 'MyNotexFile.html');
+    end;
   finally
     MyIni.Free;
   end;
@@ -1303,7 +1441,9 @@ end;
 procedure TfmMain.FormResize(Sender: TObject);
 begin
   // Resize the status bar
-  sbStatusBar.Panels[0].Width := fmMain.Width - 200;
+  sbStatusBar.Panels[0].Width := fmMain.Width - 450;
+  sbStatusBar.Panels[1].Width := 300;
+  sbStatusBar.Panels[2].Width := 150;
 end;
 
 procedure TfmMain.FormWindowStateChange(Sender: TObject);
@@ -1315,62 +1455,87 @@ begin
     FmMaximized := False;
 end;
 
-procedure TfmMain.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+procedure TfmMain.FormKeyDown(Sender: TObject; var Key: word; Shift: TShiftState);
 begin
   // Manage menu shortcuts, non working from every fields
   // Open File
-  if ((Key = Ord('O')) and (Shift = [ssCtrl])) then begin
-    if miFileOpen.Enabled = True then begin
+  if ((Key = Ord('O')) and (Shift = [ssCtrl])) then
+  begin
+    if miFileOpen.Enabled = True then
+    begin
       miFileOpenClick(nil);
       Key := 0;
     end;
   end;
   // Exit
-  if ((Key = Ord('Q')) and (Shift = [ssCtrl])) then begin
-    if miFileExit.Enabled = True then begin
+  if ((Key = Ord('Q')) and (Shift = [ssCtrl])) then
+  begin
+    if miFileExit.Enabled = True then
+    begin
       miFileExitClick(nil);
       Key := 0;
     end;
   end;
   // New Note
-  if ((Key = Ord('N')) and (Shift = [ssCtrl])) then begin
-    if miNotesNew.Enabled = True then begin
+  if ((Key = Ord('N')) and (Shift = [ssCtrl])) then
+  begin
+    if miNotesNew.Enabled = True then
+    begin
       miNotesNewClick(nil);
       Key := 0;
     end;
   end;
   // Save Note
-  if ((Key = Ord('S')) and (Shift = [ssCtrl])) then begin
-    if miFileSave.Enabled = True then begin
+  if ((Key = Ord('S')) and (Shift = [ssCtrl])) then
+  begin
+    if miFileSave.Enabled = True then
+    begin
       miFileSaveClick(nil);
       Key := 0;
     end;
   end;
-  // Undo editing
-  if ((Key = Ord('Z')) and (Shift = [ssCtrl])) then begin
-    if miFileUndo.Enabled = True then begin
+  // Undo editing for file
+  if ((Key = Ord('Z')) and (Shift = [ssCtrl, ssShift])) then
+  begin
+    if miFileUndo.Enabled = True then
+    begin
       miFileUndoClick(nil);
       Key := 0;
     end;
   end;
+  // Undo editing for note
+  if ((Key = Ord('Z')) and (Shift = [ssCtrl, ssShift])) then
+  begin
+    if miNotesUndo.Enabled = True then
+    begin
+      miNotesUndoClick(nil);
+      Key := 0;
+    end;
+  end;
   // Show only text memo
-  if ((Key = Ord('H')) and (Shift = [ssCtrl])) then begin
-    if miNotesShowOnlyText.Enabled = True then begin
+  if ((Key = Ord('H')) and (Shift = [ssCtrl])) then
+  begin
+    if miNotesShowOnlyText.Enabled = True then
+    begin
       miNotesShowOnlyTextClick(nil);
       Key := 0;
     end;
   end;
   // Order Note by date
-  if ((Key = Ord('D')) and (Shift = [ssCtrl])) then begin
-    if miOrderByDate.Enabled = True then begin
+  if ((Key = Ord('D')) and (Shift = [ssCtrl])) then
+  begin
+    if miOrderByDate.Enabled = True then
+    begin
       miOrderByDate.Checked := True;
       miOrderByDateClick(nil);
       Key := 0;
     end;
   end;
   // Order Note by title
-  if ((Key = Ord('T')) and (Shift = [ssCtrl])) then begin
-    if miOrderByTitle.Enabled = True then begin
+  if ((Key = Ord('T')) and (Shift = [ssCtrl])) then
+  begin
+    if miOrderByTitle.Enabled = True then
+    begin
       miOrderByTitle.Checked := True;
       // The following event is called also by miOrderByTitle
       miOrderByDateClick(nil);
@@ -1378,8 +1543,10 @@ begin
     end;
   end;
   // Order Note by custom
-  if ((Key = Ord('U')) and (Shift = [ssCtrl, ssShift])) then begin
-    if miOrderCustom.Enabled = True then begin
+  if ((Key = Ord('U')) and (Shift = [ssCtrl, ssShift])) then
+  begin
+    if miOrderCustom.Enabled = True then
+    begin
       miOrderCustom.Checked := True;
       // The following event is called also by miOrderByTitle
       miOrderByDateClick(nil);
@@ -1387,79 +1554,99 @@ begin
     end;
   end;
   // Encrypt Note
-  if ((Key = Ord('Y')) and (Shift = [ssCtrl])) then begin
-    if miNotesEncDecrypt.Enabled = True then begin
+  if ((Key = Ord('Y')) and (Shift = [ssCtrl])) then
+  begin
+    if miNotesEncDecrypt.Enabled = True then
+    begin
       miNotesEncDecryptClick(nil);
       Key := 0;
     end;
   end;
   // Insert text in a new note
-  if ((Key = Ord('I')) and (Shift = [ssCtrl, ssShift])) then begin
-    if miNotesInsert.Enabled = True then begin
+  if ((Key = Ord('I')) and (Shift = [ssCtrl, ssShift])) then
+  begin
+    if miNotesInsert.Enabled = True then
+    begin
       miNotesInsertClick(nil);
       Key := 0;
     end;
   end;
   // Print
-  if ((Key = Ord('P')) and (Shift = [ssCtrl, ssShift])) then begin
-    if miNotesPrint.Enabled = True then begin
+  if ((Key = Ord('P')) and (Shift = [ssCtrl, ssShift])) then
+  begin
+    if miNotesPrint.Enabled = True then
+    begin
       miNotesPrintClick(nil);
       Key := 0;
     end;
   end;
   // Find Note
-  if ((Key = Ord('F')) and (Shift = [ssCtrl])) then begin
-    if miNotesFind.Enabled = True then begin
+  if ((Key = Ord('F')) and (Shift = [ssCtrl])) then
+  begin
+    if miNotesFind.Enabled = True then
+    begin
       miNotesFindClick(nil);
       Key := 0;
     end;
   end;
   // Sync
-  if ((Key = Ord('K')) and (Shift = [ssCtrl])) then begin
-    if miToolsSyncDo.Enabled = True then begin
+  if ((Key = Ord('K')) and (Shift = [ssCtrl])) then
+  begin
+    if miToolsSyncDo.Enabled = True then
+    begin
       miToolsSyncDoClick(nil);
       Key := 0;
     end;
   end;
   // Send to email
-  if ((Key = Ord('E')) and (Shift = [ssCtrl, ssShift])) then begin
-    if pmTextSendAsEmail.Enabled = True then begin
+  if ((Key = Ord('E')) and (Shift = [ssCtrl, ssShift])) then
+  begin
+    if pmTextSendAsEmail.Enabled = True then
+    begin
       pmTextSendAsEmailClick(nil);
       Key := 0;
     end;
   end;
   // PgDn - Prev Record
-  if ((Key = 33) and (Shift = [ssCtrl]))  then begin
-    if sqNotes.Active = True then begin
+  if ((Key = 33) and (Shift = [ssCtrl])) then
+  begin
+    if sqNotes.Active = True then
+    begin
       if ((grSubjects.Focused = False) and (grTitles.Focused = False) and
-        (miNotesShowOnlyText.Checked = False)) then begin
+        (miNotesShowOnlyText.Checked = False)) then
+      begin
         sqNotes.Prior;
         Key := 0;
-      end
+      end;
     end;
   end;
   // PgDn - Next Record
-  if ((Key = 34) and (Shift = [ssCtrl]))  then begin
-    if sqNotes.Active = True then begin
+  if ((Key = 34) and (Shift = [ssCtrl])) then
+  begin
+    if sqNotes.Active = True then
+    begin
       if ((grSubjects.Focused = False) and (grTitles.Focused = False) and
-        (miNotesShowOnlyText.Checked = False)) then begin
+        (miNotesShowOnlyText.Checked = False)) then
+      begin
         sqNotes.Next;
         Key := 0;
-      end
+      end;
     end;
   end;
   // Set bookmark (0 Key=48; 9 Key=57)
-  if ((Key >= Ord('0')) and (Key <= Ord('9')) and
-    (Shift = [ssShift, ssCtrl])) then begin
-    if ((sqSubjects.RecordCount > 0) and (sqNotes.RecordCount > 0)) then begin
-      BookmarkList[Key - 48] := sqSubjects.FieldByName('IDSubjects').AsString +
-        '|' + sqNotes.FieldByName('IDNotes').AsString;
-      sbStatusBar.Panels[0].Text := sbr011 + ' ' + IntToStr(Key - 48);
+  if ((Key >= Ord('0')) and (Key <= Ord('9')) and (Shift = [ssShift, ssCtrl])) then
+  begin
+    if ((sqSubjects.RecordCount > 0) and (sqNotes.RecordCount > 0)) then
+    begin
+      BookmarkList[Key - 48] :=
+        sqSubjects.FieldByName('IDSubjects').AsString + '|' +
+        sqNotes.FieldByName('IDNotes').AsString;
+      sbStatusBar.Panels[0].Text := ' ' + sbr011 + ' ' + IntToStr(Key - 48);
     end;
   end
   // Go to bookmark
-  else if ((Key >= Ord('0')) and (Key <= Ord('9')) and
-    (Shift = [ssCtrl, ssAlt])) then begin
+  else if ((Key >= Ord('0')) and (Key <= Ord('9')) and (Shift = [ssCtrl, ssAlt])) then
+  begin
     IsTextToLoad := False;
     sqSubjects.Locate('IDSubjects', Copy(BookmarkList[Key - 48], 1,
       Pos('|', BookmarkList[Key - 48]) - 1), []);
@@ -1469,8 +1656,10 @@ begin
     sqNotesAfterScroll(nil);
   end
   // Copy note link
-  else if ((Key = Ord('N')) and (Shift = [ssCtrl, ssShift])) then begin
-    if sqNotes.RecordCount > 0 then begin
+  else if ((Key = Ord('N')) and (Shift = [ssCtrl, ssShift])) then
+  begin
+    if sqNotes.RecordCount > 0 then
+    begin
       Clipboard.AsText := 'mnt://' + sqSubjects.FieldByName('SubjectsName').AsString +
         '/' + sqNotes.FieldByName('NotesTitle').AsString;
       Clipboard.AsText := StringReplace(Clipboard.AsText, ' ', '_', [rfReplaceAll]);
@@ -1479,17 +1668,19 @@ begin
   end;
 end;
 
-procedure TfmMain.dbTextKeyDown(Sender: TObject; var Key: Word;
-Shift: TShiftState);
-  var fp: TFontParams;
-  iChar, idxStart, idxLength: Integer;
-  NewItemBullet: ShortInt = 0;
+procedure TfmMain.dbTextKeyDown(Sender: TObject; var Key: word; Shift: TShiftState);
+var
+  fp: TFontParams;
+  iChar, idxStart, idxLength: integer;
+  NewItemBullet: shortint = 0;
 begin
   // Manage the bullet/number in the next paragraph
-  if ((Key = 13) and (Shift = [ssCtrl])) then begin
+  if ((Key = 13) and (Shift = [ssCtrl])) then
+  begin
     dbText.GetTextAttributes(dbText.GetWordParagraphStartEnd(dbText.SelStart,
       False, True), fp);
-    if fp.Indented > DefaultIndent then begin
+    if fp.Indented > DefaultIndent then
+    begin
       // Indentation may remain after delete, so...
       idxStart := dbText.GetWordParagraphStartEnd(dbText.SelStart, False, True);
       idxLength := dbText.GetWordParagraphStartEnd(dbText.SelStart,
@@ -1501,12 +1692,17 @@ begin
       EditNotesDataset;
     end;
   end
-  else if Key = 13 then begin
+  else if Key = 13 then
+  begin
     dbText.GetTextAttributes(dbText.GetWordParagraphStartEnd(dbText.SelStart,
       False, True), fp);
-    if fp.Indented > DefaultIndent then begin
+    if fp.Indented > DefaultIndent then
+    begin
       NewItemBullet := GetBullet;
-      dbText.InsertText(dbText.SelStart, LineEnding + ' ' + #9);
+      if dbText.CaretPos.X > 0 then
+        dbText.InsertText(dbText.SelStart, LineEnding + ' ' + #9)
+      else
+        dbText.InsertText(dbText.SelStart, LineEnding);
       if NewItemBullet = 1 then
         dbText.ListNumber(dbText.SelStart, WidthInden, '*')
       else if NewItemBullet = 2 then
@@ -1520,7 +1716,8 @@ begin
   end;
   // If sqSubjects = 0 is still possibile to write a letter in the memo,
   // also if it is cancelled when it lost the focus; to prevent this...
-  if sqSubjects.RecordCount = 0 then begin
+  if sqSubjects.RecordCount = 0 then
+  begin
     key := 0;
   end;
   // Put in edit the dataset if the key is not a shortcut
@@ -1529,60 +1726,73 @@ begin
   // 39 Right arrow - 40 Down arrow - 45 Ins - 91 Left Win - 92 Right Win
   // 93 pop menu - 112-123 F1-F12 - 144 Lock num - 145 Lock scroll - 235 Alt gr
   // 48-57+Ctrl bookmarks - 17 Ctrl - 13 Return - 8 backspace
-  if ((((Shift <> [ssCtrl]) and (Shift <> [ssCtrl,ssShift]) and
-    (Shift <> [ssCtrl,ssAlt]) and (Shift <> [ssCtrl,ssShift,ssAlt])) and not
-    (key in [16,18,19,20,27,33,34,35,36,37,38,39,40,45,91,92,93,112,113,114,
-      115,116,117,118,119,120,121,122,123,144,145,235] )) or
+  if ((((Shift <> [ssCtrl]) and (Shift <> [ssCtrl, ssShift]) and
+    (Shift <> [ssCtrl, ssAlt]) and (Shift <> [ssCtrl, ssShift, ssAlt])) and
+    not (key in [16, 18, 19, 20, 27, 33, 34, 35, 36, 37, 38, 39, 40, 45, 91, 92, 93, 112, 113, 114,
+    115, 116, 117, 118, 119, 120, 121, 122, 123, 144, 145, 235])) or
     ((Shift = [ssCtrl]) and (Key = Ord('X'))) or
     ((Shift = [ssCtrl]) and (Key = Ord('V'))) or
-    ((Shift = [ssCtrl, ssShift]) and (Key = Ord('Y'))) or
-    (Key = 8)) then
+    ((Shift = [ssCtrl, ssShift]) and (Key = Ord('Y'))) or (Key = 8)) then
   begin
     EditNotesDataset;
+    // Store undo on space without selection active
+    if ((Key = Ord(' ')) and (dbText.SelLength < 1)) then
+    begin
+      StoreUndoData;
+    end;
     // Format possible internet link
-    if ((Key = Ord(' ')) or (Key = 13))then begin
+    if ((Key = Ord(' ')) or (Key = 13)) then
+    begin
       MakeLink(CheckLink);
     end;
   end;
   // Ctrl + Shift + 0-9 are use to set bookmarks
-  if ((Shift = [ssCtrl, ssShift]) and (Key >= Ord('0'))
-    and (Key <= Ord('9'))) then
+  if ((Shift = [ssCtrl, ssShift]) and (Key >= Ord('0')) and (Key <= Ord('9'))) then
     Key := 0;
   // Ctrl + Alt + 0-9 are use to get bookmarks
-  if ((Shift = [ssCtrl, ssAlt]) and (Key >= Ord('0'))
-    and (Key <= Ord('9'))) then
+  if ((Shift = [ssCtrl, ssAlt]) and (Key >= Ord('0')) and (Key <= Ord('9'))) then
     Key := 0;
   // Shortcut for bold, italic, underline and restore
-  if ((Key = Ord('B')) and (Shift = [ssCtrl])) then begin
-    if tbFontBold.Enabled = True then begin
+  if ((Key = Ord('B')) and (Shift = [ssCtrl])) then
+  begin
+    if tbFontBold.Enabled = True then
+    begin
       tbFontBold.Down := not tbFontBold.Down;
       SetFontFormat(tbFontBold);
       Key := 0;
     end;
   end;
-  if ((Key = Ord('I')) and (Shift = [ssCtrl])) then begin
-    if tbFontItalic.Enabled = True then begin
+  if ((Key = Ord('I')) and (Shift = [ssCtrl])) then
+  begin
+    if tbFontItalic.Enabled = True then
+    begin
       tbFontItalic.Down := not tbFontItalic.Down;
       SetFontFormat(tbFontItalic);
       Key := 0;
     end;
   end;
-  if ((Key = Ord('U')) and (Shift = [ssCtrl])) then begin
-    if tbFontUnderline.Enabled = True then begin
+  if ((Key = Ord('U')) and (Shift = [ssCtrl])) then
+  begin
+    if tbFontUnderline.Enabled = True then
+    begin
       tbFontUnderline.Down := not tbFontUnderline.Down;
       SetFontFormat(tbFontUnderline);
       Key := 0;
     end;
   end;
-  if ((Key = Ord('M')) and (Shift = [ssCtrl])) then begin
-    if tbFontRestore.Enabled = True then begin
+  if ((Key = Ord('M')) and (Shift = [ssCtrl])) then
+  begin
+    if tbFontRestore.Enabled = True then
+    begin
       SetFontFormat(tbFontRestore);
       Key := 0;
     end;
   end;
   // Shortcut for alignment
-  if ((Key = Ord('L')) and (Shift = [ssCtrl])) then begin
-    if tbAlignLeft.Enabled = True then begin
+  if ((Key = Ord('L')) and (Shift = [ssCtrl])) then
+  begin
+    if tbAlignLeft.Enabled = True then
+    begin
       tbAlignLeft.Down := True;
       tbAlignCenter.Down := False;
       tbAlignRight.Down := False;
@@ -1591,8 +1801,10 @@ begin
       Key := 0;
     end;
   end;
-  if ((Key = Ord('E')) and (Shift = [ssCtrl])) then begin
-    if tbAlignCenter.Enabled = True then begin
+  if ((Key = Ord('E')) and (Shift = [ssCtrl])) then
+  begin
+    if tbAlignCenter.Enabled = True then
+    begin
       tbAlignCenter.Down := True;
       tbAlignLeft.Down := False;
       tbAlignRight.Down := False;
@@ -1601,8 +1813,10 @@ begin
       Key := 0;
     end;
   end;
-  if ((Key = Ord('R')) and (Shift = [ssCtrl])) then begin
-    if tbAlignRight.Enabled = True then begin
+  if ((Key = Ord('R')) and (Shift = [ssCtrl])) then
+  begin
+    if tbAlignRight.Enabled = True then
+    begin
       tbAlignRight.Down := True;
       tbAlignLeft.Down := False;
       tbAlignCenter.Down := False;
@@ -1611,8 +1825,10 @@ begin
       Key := 0;
     end;
   end;
-  if ((Key = Ord('J')) and (Shift = [ssCtrl])) then begin
-    if tbAlignFill.Enabled = True then begin
+  if ((Key = Ord('J')) and (Shift = [ssCtrl])) then
+  begin
+    if tbAlignFill.Enabled = True then
+    begin
       tbAlignFill.Down := True;
       tbAlignLeft.Down := False;
       tbAlignCenter.Down := False;
@@ -1622,68 +1838,92 @@ begin
     end;
   end;
   // Shortcut for color background
-  if ((Key = Ord('P')) and (Shift = [ssCtrl])) then begin
-    if tbBackColorFontChange.Enabled = True then begin
+  if ((Key = Ord('P')) and (Shift = [ssCtrl])) then
+  begin
+    if tbBackColorFontChange.Enabled = True then
+    begin
       tbColorFontChangeClick(tbBackColorFontChange);
       Key := 0;
     end;
   end;
   // Shortcut for copy as html
-  if ((Key = Ord('C')) and (Shift = [ssCtrl, ssShift])) then begin
-    if tbCopyHtml.Enabled = True then begin
+  if ((Key = Ord('C')) and (Shift = [ssCtrl, ssShift])) then
+  begin
+    if tbCopyHtml.Enabled = True then
+    begin
       tbCopyHtmlClick(nil);
       Key := 0;
     end;
   end;
   // Shortcut for copy as Latex
-  if ((Key = Ord('C')) and (Shift = [ssCtrl, ssShift, ssAlt])) then begin
-    if pmTextCopyLatex.Enabled = True then begin
+  if ((Key = Ord('C')) and (Shift = [ssCtrl, ssShift, ssAlt])) then
+  begin
+    if pmTextCopyLatex.Enabled = True then
+    begin
       pmTextCopyLatexClick(nil);
       Key := 0;
     end;
   end;
   // Shortcut for Heading 1
-  if ((Key = Ord('1')) and (Shift = [ssCtrl])) then begin
-    if pmHeading1.Enabled = True then begin
+  if ((Key = Ord('1')) and (Shift = [ssCtrl])) then
+  begin
+    if pmHeading1.Enabled = True then
+    begin
       SetHeadings(pmHeading1);
       Key := 0;
     end;
   end;
   // Shortcut for Heading 2
-  if ((Key = Ord('2')) and (Shift = [ssCtrl])) then begin
-    if pmHeading2.Enabled = True then begin
+  if ((Key = Ord('2')) and (Shift = [ssCtrl])) then
+  begin
+    if pmHeading2.Enabled = True then
+    begin
       SetHeadings(pmHeading2);
       Key := 0;
     end;
   end;
   // Shortcut for Heading 3
-  if ((Key = Ord('3')) and (Shift = [ssCtrl])) then begin
-    if pmHeading3.Enabled = True then begin
+  if ((Key = Ord('3')) and (Shift = [ssCtrl])) then
+  begin
+    if pmHeading3.Enabled = True then
+    begin
       SetHeadings(pmHeading3);
       Key := 0;
     end;
   end;
   // Shortcut for restore default font on all the paragraph
-  if ((Key = Ord('0')) and (Shift = [ssCtrl])) then begin
-    if pmRestoreFont.Enabled = True then begin
+  if ((Key = Ord('0')) and (Shift = [ssCtrl])) then
+  begin
+    if pmRestoreFont.Enabled = True then
+    begin
       SetHeadings(pmRestoreFont);
       Key := 0;
     end;
   end;
   // Shortcut for inserting current date and time in a new line
-  if ((Key = Ord('D')) and (Shift = [ssCtrl, ssShift, ssAlt])) then begin
+  if ((Key = Ord('D')) and (Shift = [ssCtrl, ssShift, ssAlt])) then
+  begin
     dbText.InsertText(dbText.SelStart, FormatDateTime(FDate.LongDateFormat, Now));
     EditNotesDataset;
     Key := 0;
   end;
+  // Clean paragraph
+  if ((Key = Ord('P')) and (Shift = [ssCtrl, ssShift, ssAlt])) then
+  begin
+    dbText.CleanParagraph(dbText.SelStart);
+    EditNotesDataset;
+    Key := 0;
+  end;
   // Delete line with Ctrl + Shift Y (not Ctrl only to avoid mistyping)
-  if ((Key = 89) and (Shift = [ssShift, ssCtrl])) then begin
+  if ((Key = 89) and (Shift = [ssShift, ssCtrl])) then
+  begin
     dbText.Lines.Delete(dbText.CaretPos.Y);
     EditNotesDataset;
     Key := 0;
   end;
   // Move up paragraph
-  if ((Key = 38) and (Shift = [ssShift, ssCtrl])) then begin
+  if ((Key = 38) and (Shift = [ssShift, ssCtrl])) then
+  begin
     iChar := dbText.SelStart;
     dbText.MoveParUpDown(dbText.CaretPos.Y, True);
     dbText.SelStart := iChar - UTF8Length(dbText.Lines[dbText.CaretPos.Y - 1]) - 1;
@@ -1695,7 +1935,8 @@ begin
     key := 0;
   end;
   // Move down paragraph
-  if ((Key = 40) and (Shift = [ssShift, ssCtrl])) then begin
+  if ((Key = 40) and (Shift = [ssShift, ssCtrl])) then
+  begin
     iChar := dbText.SelStart;
     dbText.MoveParUpDown(dbText.CaretPos.Y, False);
     dbText.SelStart := iChar + UTF8Length(dbText.Lines[dbText.CaretPos.Y]) + 1;
@@ -1714,19 +1955,38 @@ begin
     ZoomDecrease;
 end;
 
-procedure TfmMain.dbTextKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
-  var iBullet: Integer;
+procedure TfmMain.dbTextKeyUp(Sender: TObject; var Key: word; Shift: TShiftState);
+var
+  iBullet: integer;
 begin
+  // Link after the text has been pasted;
+  if ((Shift = [ssCtrl]) and (Key = Ord('V'))) then
+  begin
+    MakeLink(CheckLink);
+  end;
   // Toggle bullets with Ctrl + .
-  if ((Key = 190) and (Shift = [ssCtrl, ssShift])) then begin
+  if ((Key = 190) and (Shift = [ssCtrl, ssShift])) then
+  begin
     dbText.ListNumber(dbText.SelStart, 0, 'X');
     EditNotesDataset;
   end
-  else if ((Key = 190) and (Shift = [ssCtrl])) then begin
+  else if ((Key = 190) and (Shift = [ssCtrl, ssAlt])) then
+  begin
+    iBullet := GetBullet;
+    if iBullet = 2 then
+      dbText.ListNumber(dbText.SelStart, WidthInden, '1')
+    else if iBullet = 3 then
+      dbText.ListNumber(dbText.SelStart, WidthInden, 'A')
+    else if iBullet = 4 then
+      dbText.ListNumber(dbText.SelStart, WidthInden, 'a');
+    EditNotesDataset;
+  end
+  else if ((Key = 190) and (Shift = [ssCtrl])) then
+  begin
     iBullet := GetBullet;
     if iBullet = 0 then
-      dbText.ListNumber(dbText.SelStart, WidthInden, '*');
-    if iBullet = 1 then
+      dbText.ListNumber(dbText.SelStart, WidthInden, '*')
+    else if iBullet = 1 then
       dbText.ListNumber(dbText.SelStart, WidthInden, '1')
     else if iBullet = 2 then
       dbText.ListNumber(dbText.SelStart, WidthInden, 'A')
@@ -1737,11 +1997,13 @@ begin
     EditNotesDataset;
   end;
   // Todo characters
-  if ((Key = Ord('R')) and (Shift = [ssCtrl, ssShift])) then begin
+  if ((Key = Ord('R')) and (Shift = [ssCtrl, ssShift])) then
+  begin
     dbText.SetToDo(dbText.CaretPos.Y, True);
     EditNotesDataset;
   end;
-  if ((Key = Ord('T')) and (Shift = [ssCtrl, ssShift])) then begin
+  if ((Key = Ord('T')) and (Shift = [ssCtrl, ssShift])) then
+  begin
     dbText.SetToDo(dbText.CaretPos.Y, False);
     EditNotesDataset;
   end;
@@ -1752,19 +2014,22 @@ begin
 end;
 
 procedure TfmMain.dbTextMouseUp(Sender: TObject; Button: TMouseButton;
-  Shift: TShiftState; X, Y: Integer);
-  var StartSel, EndSel: Integer;
-  ThingToRun: String;
+  Shift: TShiftState; X, Y: integer);
+var
+  StartSel, EndSel: integer;
+  ThingToRun: string;
 begin
   // Run the link
-  if ssCtrl in Shift then begin
+  if ssCtrl in Shift then
+  begin
     StartSel := CheckLink;
-    if StartSel > - 1 then begin
+    if StartSel > -1 then
+    begin
       EndSel := dbText.SelStart;
       while ((UTF8Copy(dbText.Text, EndSel, 1) <> ' ') and
-        (UTF8Copy(dbText.Text, EndSel, 1) <> LineEnding) and
-        (UTF8Copy(dbText.Text, EndSel, 1) <> #9) and
-        (EndSel <= UTF8Length(dbText.Text))) do
+          (UTF8Copy(dbText.Text, EndSel, 1) <> LineEnding) and
+          (UTF8Copy(dbText.Text, EndSel, 1) <> #9) and
+          (EndSel <= UTF8Length(dbText.Text))) do
         EndSel := EndSel + 1;
       if ((UTF8Copy(dbText.Text, EndSel - 1, 1) = '.') or
         (UTF8Copy(dbText.Text, EndSel - 1, 1) = ',') or
@@ -1778,15 +2043,26 @@ begin
         (UTF8Copy(dbText.Text, EndSel - 1, 1) = '}')) then
         EndSel := EndSel - 1;
       ThingToRun := UTF8Copy(dbText.Text, startSel + 1, EndSel - StartSel - 1);
-      if UTF8Copy(ThingToRun, 1, 6) = 'mnt://' then
+      if UTF8Copy(ThingToRun, 1, 1) = '#' then
+      begin
+        if miNotesFind.Checked = False then
+        begin
+          miNotesFindClick(nil);
+          edFindText.Text := ThingToRun;
+          cbFindKind.ItemIndex := 4;
+          FindData(False);
+        end;
+      end
+      else if UTF8Copy(ThingToRun, 1, 6) = 'mnt://' then
       begin
         ThingToRun := UTF8Copy(ThingToRun, 7, Length(ThingToRun));
         ThingToRun := StringReplace(ThingToRun, '_', ' ',
           [rfReplaceAll, rfIgnoreCase]);
-        if UTF8Pos('/', ThingToRun) > 0 then begin
+        if UTF8Pos('/', ThingToRun) > 0 then
+        begin
           IsTextToLoad := False;
           sqSubjects.Locate('SubjectsName',
-            UTF8Copy(ThingToRun, 1, UTF8Pos('/', ThingToRun) -1),
+            UTF8Copy(ThingToRun, 1, UTF8Pos('/', ThingToRun) - 1),
             [loCaseInsensitive]);
           sqNotes.Locate('NotesTitle',
             UTF8Copy(ThingToRun, UTF8Pos('/', ThingToRun) + 1,
@@ -1798,7 +2074,8 @@ begin
           sqSubjects.Locate('SubjectsName', ThingToRun,
             [loCaseInsensitive]);
       end
-      else begin
+      else
+      begin
         if UTF8Copy(ThingToRun, 1, 7) = 'file://' then
         begin
           ThingToRun := StringReplace(ThingToRun, '_', ' ',
@@ -1818,10 +2095,11 @@ begin
 end;
 
 procedure TfmMain.dbTextMouseWheel(Sender: TObject; Shift: TShiftState;
-  WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
+  WheelDelta: integer; MousePos: TPoint; var Handled: boolean);
 begin
   // Change Zoom with mouse weel
-  if Shift = [ssCtrl] then begin
+  if Shift = [ssCtrl] then
+  begin
     if WheelDelta > 0 then
       ZoomIncrease
     else
@@ -1829,8 +2107,7 @@ begin
   end;
 end;
 
-procedure TfmMain.dbTitleKeyDown(Sender: TObject; var Key: Word;
-  Shift: TShiftState);
+procedure TfmMain.dbTitleKeyDown(Sender: TObject; var Key: word; Shift: TShiftState);
 begin
   // Create title in the text of the notes
   if ((Key = 13) and (Shift = [ssCtrl])) then
@@ -1848,7 +2125,8 @@ end;
 procedure TfmMain.dbTitleKeyPress(Sender: TObject; var Key: char);
 begin
   // Select tags field from title
-  if ((Key = #13) or (Key = #9)) then begin
+  if ((Key = #13) or (Key = #9)) then
+  begin
     dbTags.SetFocus;
     Key := #0;
   end;
@@ -1857,7 +2135,8 @@ end;
 procedure TfmMain.dbTagsKeyPress(Sender: TObject; var Key: char);
 begin
   // Select date field from tag
-  if ((Key = #13) or (Key = #9)) then begin
+  if ((Key = #13) or (Key = #9)) then
+  begin
     dbText.SetFocus;
     Key := #0;
   end;
@@ -1866,7 +2145,8 @@ end;
 procedure TfmMain.dbDateKeyPress(Sender: TObject; var Key: char);
 begin
   // Select text field from date
-  if ((Key = #13) or (Key = #9)) then begin
+  if ((Key = #13) or (Key = #9)) then
+  begin
     dbText.SetFocus;
     Key := #0;
   end;
@@ -1879,17 +2159,25 @@ begin
   SaveAllData;
 end;
 
-procedure TfmMain.edFindTextKeyPress(Sender: TObject; var Key: char);
+procedure TfmMain.edFindTextKeyDown(Sender: TObject; var Key: word; Shift: TShiftState);
 begin
   // Find data on Return key
-  if Key = #13 then begin
-    FindData;
-    Key := #0;
+  if ((Key = 13) and (Shift = [ssCtrl])) then
+  begin
+    if bnFind2.Enabled = True then
+    begin
+      FindData(True);
+      Key := 0;
+    end;
+  end
+  else if ((Key = 13) and (Shift = [])) then
+  begin
+    FindData(False);
+    Key := 0;
   end;
 end;
 
-procedure TfmMain.grSubjectsKeyDown(Sender: TObject; var Key: Word;
-  Shift: TShiftState);
+procedure TfmMain.grSubjectsKeyDown(Sender: TObject; var Key: word; Shift: TShiftState);
 begin
   // Move down
   if ((Key = 40) and (Shift = [ssCtrl])) then
@@ -1906,7 +2194,8 @@ begin
     Key := 0;
   end
   // Save or edit subjects on Enter key
-  else if Key = 13 then begin
+  else if Key = 13 then
+  begin
     if dsSubjects.State in [dsBrowse] then
       sqSubjects.Edit
     else if dsSubjects.State in [dsEdit, dsInsert] then
@@ -1916,22 +2205,23 @@ begin
   end;
 end;
 
-procedure TfmMain.grSubjectsPrepareCanvas(sender: TObject; DataCol: Integer;
+procedure TfmMain.grSubjectsPrepareCanvas(Sender: TObject; DataCol: integer;
   Column: TColumn; AState: TGridDrawState);
 begin
   // Subject color
   // Only if the raw is not selected
-  if not (gdSelected in AState) then begin
-    with (Sender As TDBGrid) do
+  if not (gdSelected in AState) then
+  begin
+    with (Sender as TDBGrid) do
     begin
       if sqSubjects.FieldByName('SubjectsBackColor').AsString <> '' then
       begin
-        Canvas.Brush.Color:=
+        Canvas.Brush.Color :=
           StringToColor(sqSubjects.FieldByName('SubjectsBackColor').AsString);
       end;
       if sqSubjects.FieldByName('SubjectsFontColor').AsString <> '' then
       begin
-        Canvas.Font.Color:=
+        Canvas.Font.Color :=
           StringToColor(sqSubjects.FieldByName('SubjectsFontColor').AsString);
       end;
     end;
@@ -1947,13 +2237,20 @@ end;
 procedure TfmMain.bnFindClick(Sender: TObject);
 begin
   // Find data on clic
-  FindData;
+  FindData(False);
+end;
+
+procedure TfmMain.bnFind2Click(Sender: TObject);
+begin
+  // Find data within the results
+  FindData(True);
 end;
 
 procedure TfmMain.edLocateTextKeyPress(Sender: TObject; var Key: char);
 begin
   // Find First in current note text on Return key
-  if Key = #13 then begin
+  if Key = #13 then
+  begin
     FindFirstNext(bnFindFirst);
     Key := #0;
   end;
@@ -1965,7 +2262,7 @@ begin
   if lbAttNames.Items.Count = 0 then
   begin
     if miAttachNew.Enabled = True then
-      miAttachNewClick(nil)
+      miAttachNewClick(nil);
   end
   // Open attachment
   else if miAttachOpen.Enabled = True then
@@ -1979,7 +2276,8 @@ begin
 end;
 
 procedure TfmMain.lbTagsNamesDblClick(Sender: TObject);
-  var StTag: String;
+var
+  StTag: string;
 begin
   // Save current tag in dbTags or in search field
   if lbTagsNames.Items.Count = 0 then
@@ -1988,19 +2286,22 @@ begin
   // There is onlty the message that tags are too numerous to create the list
   if UTF8Pos('[', StTag) = 0 then
     Exit;
-  if miNotesFind.Checked = False then begin
-    if sqNotes.RecordCount > 0 then begin
+  if miNotesFind.Checked = False then
+  begin
+    if sqNotes.RecordCount > 0 then
+    begin
       if dsNotes.State in [dsBrowse] then
         sqNotes.Edit;
       if dbTags.Text = '' then
         dbTags.Text := UTF8Copy(StTag, 1, UTF8Pos('[', StTag) - 2)
       else
-        dbTags.Text := dbTags.Text + ', ' +
-          UTF8Copy(StTag, 1, UTF8Pos('[', StTag) - 2);
+        dbTags.Text := dbTags.Text + ', ' + UTF8Copy(StTag,
+          1, UTF8Pos('[', StTag) - 2);
       dbTags.Text := CleanTagsField(dbTags.Text);
     end;
   end
-  else begin
+  else
+  begin
     // Search in tags
     cbFindKind.ItemIndex := 5;
     if edFindText.Text = '' then
@@ -2025,9 +2326,10 @@ begin
     dbTitle.SetFocus;
 end;
 
-procedure TfmMain.grTitlesDrawCell(Sender: TObject; aCol, aRow: Integer;
+procedure TfmMain.grTitlesDrawCell(Sender: TObject; aCol, aRow: integer;
   aRect: TRect; aState: TGridDrawState);
-  var iIndLock, iIndAct: Integer;
+var
+  iIndLock, iIndAct: integer;
 begin
   // Set the alternate color from encrypted notes or for activities
   iIndLock := 0;
@@ -2036,19 +2338,20 @@ begin
   begin
     grTitles.Canvas.Brush.Color := grTitles.FixedColor;
   end
-  else begin
+  else
+  begin
     if not (gdSelected in aState) then
     begin
       if ((aCol > 0) and (aRow > 0)) then
       begin
         if grTitles.Cells[5, aRow] <> '' then
         begin
-          grTitles.Canvas.Brush.Color:=
+          grTitles.Canvas.Brush.Color :=
             StringToColor(grTitles.Cells[5, aRow]);
         end;
         if grTitles.Cells[6, aRow] <> '' then
         begin
-          grTitles.Canvas.Font.Color:=
+          grTitles.Canvas.Font.Color :=
             StringToColor(grTitles.Cells[6, aRow]);
         end;
       end;
@@ -2075,8 +2378,7 @@ begin
   end;
 end;
 
-procedure TfmMain.grTitlesKeyDown(Sender: TObject; var Key: Word;
-  Shift: TShiftState);
+procedure TfmMain.grTitlesKeyDown(Sender: TObject; var Key: word; Shift: TShiftState);
 begin
   // Move down
   if ((Key = 40) and (Shift = [ssCtrl])) then
@@ -2091,7 +2393,7 @@ begin
     if bnNotesUp.Enabled = True then
       bnNotesUpClick(nil);
     Key := 0;
-  end
+  end;
 end;
 
 procedure TfmMain.lbPwdTopResize(Sender: TObject);
@@ -2113,17 +2415,20 @@ procedure TfmMain.dsSubjectsStateChange(Sender: TObject);
 begin
   // Active & deactivate subjects' menus
   if ((dsSubjects.State in [dsEdit, dsInsert]) or
-    (dsNotes.State in [dsEdit, dsInsert])) then begin
+    (dsNotes.State in [dsEdit, dsInsert])) then
+  begin
     miFileSave.Enabled := True;
     tbFileSave.Enabled := True;
     miFileUndo.Enabled := True;
   end
-  else begin
+  else
+  begin
     miFileSave.Enabled := False;
     tbFileSave.Enabled := False;
     miFileUndo.Enabled := False;
   end;
-  if dsSubjects.State in [dsEdit, dsInsert] then begin
+  if dsSubjects.State in [dsEdit, dsInsert] then
+  begin
     miSubjectNew.Enabled := False;
     tbSubjectNew.Enabled := False;
     miSubjectDelete.Enabled := False;
@@ -2137,7 +2442,8 @@ begin
     pmSubComments.Enabled := False;
     pmSubLook.Enabled := False;
   end
-  else begin
+  else
+  begin
     miSubjectNew.Enabled := True;
     tbSubjectNew.Enabled := True;
     miSubjectDelete.Enabled := True;
@@ -2156,7 +2462,8 @@ end;
 procedure TfmMain.dsSubjectsDataChange(Sender: TObject; Field: TField);
 begin
   // If Subjects data changes without a State change
-  if sqSubjects.RecordCount = 0 then begin
+  if sqSubjects.RecordCount = 0 then
+  begin
     miSubjectDelete.Enabled := False;
     pmSubDelete.Enabled := False;
     miSubjectComments.Enabled := False;
@@ -2167,7 +2474,8 @@ begin
     pmSubComments.Enabled := False;
     pmSubLook.Enabled := False;
   end
-  else begin
+  else
+  begin
     miSubjectDelete.Enabled := dsSubjects.State in [dsBrowse];
     pmSubDelete.Enabled := dsSubjects.State in [dsBrowse];
     miSubjectComments.Enabled := dsSubjects.State in [dsBrowse];
@@ -2181,11 +2489,14 @@ begin
 end;
 
 procedure TfmMain.sqSubjectsAfterPost(DataSet: TDataSet);
-  var IDSub: Integer;
+var
+  IDSub: integer;
 begin
   // To recreate alphabetic order in subjects after post
   // if the subject is not empty (= new)
-  if sqSubjects.FieldByName('SubjectsName').AsString <> '' then begin;
+  if sqSubjects.FieldByName('SubjectsName').AsString <> '' then
+  begin
+    ;
     IDSub := sqSubjects.FieldByName('IDSubjects').AsInteger;
     // To avoid that the text is loaded
     IsTextToLoad := False;
@@ -2202,25 +2513,31 @@ end;
 procedure TfmMain.sqSubjectsAfterScroll(DataSet: TDataSet);
 begin
   // Select the Notes corresponding to the subject
-  with sqNotes do begin
+  with sqNotes do
+  begin
     Close;
-    if miOrderByTitle.Checked = True then begin
+    if miOrderByTitle.Checked = True then
+    begin
       SQL := 'Select * from Notes where ID_Subjects = ' +
         sqSubjects.FieldByName('IDSubjects').AsString +
-        ' order by NotesTitle collate nocase, IDNotes'
+        ' order by NotesTitle collate nocase, IDNotes';
     end
-    else if miOrderByDate.Checked = True then begin
+    else if miOrderByDate.Checked = True then
+    begin
       SQL := 'Select * from Notes where Notes.ID_Subjects = ' +
-        sqSubjects.FieldByName('IDSubjects').AsString + ' order by NotesDate, IDNotes'
+        sqSubjects.FieldByName('IDSubjects').AsString + ' order by NotesDate, IDNotes';
     end
-    else begin
+    else
+    begin
       SQL := 'Select * from Notes where Notes.ID_Subjects = ' +
-        sqSubjects.FieldByName('IDSubjects').AsString + ' order by NotesSort'
+        sqSubjects.FieldByName('IDSubjects').AsString + ' order by NotesSort';
     end;
     // To show the last note if order by note is active
-    if miOrderByDate.Checked = True then begin
+    if miOrderByDate.Checked = True then
+    begin
       // sqNotes.DisableControls does not work, so...
-      if IsTextToLoad = True then begin
+      if IsTextToLoad = True then
+      begin
         IsTextToLoad := False;
         Open;
         IsTextToLoad := True;
@@ -2229,25 +2546,29 @@ begin
           Last;
       end
       // IsTextToLoad could be set to False by OpenDataTables
-      else begin
+      else
+      begin
         Open;
         // Call to last with recordcount = 0 raises an error
         if RecordCount > 0 then
           Last;
       end;
     end
-    else begin
+    else
+    begin
       Open;
     end;
-
-    if sqNotes.RecordCount = 0 then begin
+    if sqNotes.RecordCount = 0 then
+    begin
       dbText.Clear;
+      lbAttNames.Clear;
       grActGrid.Clean(1, 1, grActGrid.ColCount - 1,
         grActGrid.RowCount - 1, [gzNormal]);
       grActGrid.Row := 1;
       LastRowAct := 1;
       meActNotes.Clear;
       SetCharCount(True);
+      ClearUndoData;
     end;
   end;
   // Load title and date in title grid
@@ -2259,45 +2580,51 @@ end;
 procedure TfmMain.sqSubjectsBeforeDelete(DataSet: TDataSet);
 begin
   // Confirm for deletion and clear all related notes
-  if MessageDlg(msg001, mtConfirmation, [mbOK, mbCancel], 0) = mrCancel then begin
+  if MessageDlg(msg001, mtConfirmation, [mbOK, mbCancel], 0) = mrCancel then
+  begin
     Abort;
   end
-  else try
-    Screen.Cursor := crHourGlass;
-    Application.ProcessMessages;
-    IsTextToLoad := False;
-    while sqNotes.RecordCount > 0 do begin
-      // Set the flag to recreate tags list
-      if sqNotes.FieldByName('NotesTags').AsString <> '' then
-        RecreateTagsList := True;
-      sqNotes.Delete;
-      sqNotes.ApplyUpdates;
+  else
+    try
+      Screen.Cursor := crHourGlass;
+      Application.ProcessMessages;
+      IsTextToLoad := False;
+      while sqNotes.RecordCount > 0 do
+      begin
+        // Set the flag to recreate tags list
+        if sqNotes.FieldByName('NotesTags').AsString <> '' then
+          RecreateTagsList := True;
+        sqNotes.Delete;
+        sqNotes.ApplyUpdates;
+      end;
+      if RecreateTagsList = True then
+      begin
+        CreateTagsList;
+        RecreateTagsList := False;
+      end;
+      IsTextToLoad := True;
+      // Save the UID of the record to be deleted for sync
+      with sqDelRec do
+      begin
+        Open;
+        Append;
+        sqDelRec.FieldByName('DelRecUID').AsString :=
+          sqSubjects.FieldByName('SubjectsUID').AsString;
+        sqDelRec.FieldByName('DelRecDTMod').AsDateTime := Now;
+        Post;
+        ApplyUpdates;
+        Close;
+      end;
+    finally
+      Screen.Cursor := crDefault;
     end;
-    if RecreateTagsList = True then begin
-      CreateTagsList;
-      RecreateTagsList := False;
-    end;
-    IsTextToLoad := True;
-    // Save the UID of the record to be deleted for sync
-    with sqDelRec do begin
-      Open;
-      Append;
-      sqDelRec.FieldByName('DelRecUID').AsString :=
-        sqSubjects.FieldByName('SubjectsUID').AsString;
-      sqDelRec.FieldByName('DelRecDTMod').AsDateTime := Now;
-      Post;
-      ApplyUpdates;
-      Close;
-    end;
-  finally
-    Screen.Cursor := crDefault;
-  end;
 end;
 
 procedure TfmMain.sqSubjectsBeforeInsert(DataSet: TDataSet);
 begin
   // Check before creating subject
-  if ConfirmNewSubject = True then begin
+  if ConfirmNewSubject = True then
+  begin
     if MessageDlg(msg002, mtConfirmation, [mbOK, mbCancel], 0) = mrCancel then
       Abort;
   end;
@@ -2317,7 +2644,8 @@ begin
 end;
 
 procedure TfmMain.sqSubjectsAfterInsert(DataSet: TDataSet);
-  var myGUID: TGUID;
+var
+  myGUID: TGUID;
 begin
   // Create UID and sort
   CreateGUID(myGUID);
@@ -2344,10 +2672,12 @@ end;
 // ************************* NOTES PROCEDURES **********************************
 
 procedure TfmMain.dsNotesDataChange(Sender: TObject; Field: TField);
+var
+  fmTime: string = 'hh:nn am/pm';
 begin
   // If Notes data changes without a State change
-  if ((sqNotes.RecordCount = 0) and
-    (dsNotes.State in [dsBrowse])) then begin
+  if ((sqNotes.RecordCount = 0) and (dsNotes.State in [dsBrowse])) then
+  begin
     miNotesDelete.Enabled := False;
     pmNotesDelete.Enabled := False;
     pmNotesLook.Enabled := False;
@@ -2401,19 +2731,22 @@ begin
     meActNotes.Enabled := False;
     SetCharCount(True);
   end
-  else begin
+  else
+  begin
     miNotesMove.Enabled := True;
     miNotesDelete.Enabled := dsNotes.State in [dsBrowse];
     pmNotesDelete.Enabled := dsNotes.State in [dsBrowse];
     pmNotesLook.Enabled := dsNotes.State in [dsBrowse];
     miNotesEncDecrypt.Enabled := dsNotes.State in [dsBrowse];
-    if pnPassword.Visible = False then begin
+    if pnPassword.Visible = False then
+    begin
       miNotesSendToWp.Enabled := dsNotes.State in [dsBrowse];
       miNotesSendToOO.Enabled := dsNotes.State in [dsBrowse];
       miNotesSendToLO.Enabled := dsNotes.State in [dsBrowse];
       miNotesSendToBrowser.Enabled := dsNotes.State in [dsBrowse];
     end
-    else begin
+    else
+    begin
       miNotesSendToWp.Enabled := False;
       miNotesSendToOO.Enabled := False;
       miNotesSendToLO.Enabled := False;
@@ -2465,18 +2798,27 @@ begin
   end;
   // Update notes numbers in status bar;
   // it is modified also in miToolsLanguageClick
-  if dsNotes.State in [dsInsert, dsEdit] then begin
-    sbStatusBar.Panels[0].Text := sbr001
+  if dsNotes.State in [dsInsert, dsEdit] then
+  begin
+    sbStatusBar.Panels[0].Text := ' ' + sbr001;
   end
-  else if sqNotes.RecordCount = 0 then begin
-    sbStatusBar.Panels[0].Text := sbr002;
+  else if sqNotes.RecordCount = 0 then
+  begin
+    sbStatusBar.Panels[0].Text := ' ' + sbr002;
     SetCharCount(True);
   end
-  else begin sbStatusBar.Panels[0].Text := sbr003 + ' ' + IntToStr(sqNotes.RecNo) +
-    ' ' + sbr004 + ' ' + IntToStr(sqNotes.RecordCount) + ' - ' + sbr009 + ' ' +
-    FormatDateTime(FDate.LongDateFormat,
-    sqNotes.FieldByName('NotesDTMod').AsDateTime) + ' ' + sbr010 + ' ' +
-    FormatDateTime('hh:nn', sqNotes.FieldByName('NotesDTMod').AsDateTime);
+  else
+  begin
+    if fl24Hour = True then
+    begin
+      fmTime := 'hh:nn';
+    end;
+    sbStatusBar.Panels[0].Text :=
+      ' ' + sbr003 + ' ' + IntToStr(sqNotes.RecNo) + ' ' + sbr004 +
+      ' ' + IntToStr(sqNotes.RecordCount) + ' - ' + sbr009 + ' ' +
+      FormatDateTime(FDate.LongDateFormat, sqNotes.FieldByName(
+      'NotesDTMod').AsDateTime) + ' ' + sbr010 + ' ' +
+      FormatDateTime(fmTime, sqNotes.FieldByName('NotesDTMod').AsDateTime);
   end;
 end;
 
@@ -2484,17 +2826,20 @@ procedure TfmMain.dsNotesStateChange(Sender: TObject);
 begin
   // Active & deactivate notes menus
   if ((dsSubjects.State in [dsEdit, dsInsert]) or
-    (dsNotes.State in [dsEdit, dsInsert])) then begin
+    (dsNotes.State in [dsEdit, dsInsert])) then
+  begin
     miFileSave.Enabled := True;
     tbFileSave.Enabled := True;
     miFileUndo.Enabled := True;
   end
-  else begin
+  else
+  begin
     miFileSave.Enabled := False;
     tbFileSave.Enabled := False;
     miFileUndo.Enabled := False;
   end;
-  if dsNotes.State in [dsEdit, dsInsert] then begin
+  if dsNotes.State in [dsEdit, dsInsert] then
+  begin
     miNotesNew.Enabled := False;
     tbNotesNew.Enabled := False;
     miNotesDelete.Enabled := False;
@@ -2508,7 +2853,8 @@ begin
     pmNotesDelete.Enabled := False;
     pmNotesLook.Enabled := False;
   end
-  else begin
+  else
+  begin
     miNotesNew.Enabled := True;
     tbNotesNew.Enabled := True;
     miNotesDelete.Enabled := True;
@@ -2527,7 +2873,8 @@ end;
 procedure TfmMain.sqNotesBeforeInsert(DataSet: TDataSet);
 begin
   // Avoid notes when there are no subjects
-  if sqSubjects.RecordCount = 0 then begin
+  if sqSubjects.RecordCount = 0 then
+  begin
     MessageDlg(msg003, mtWarning, [mbOK], 0);
     Abort;
   end;
@@ -2543,11 +2890,13 @@ begin
   // Save data if necessary and set flag to recreate tags list
   if sqNotes.FieldByName('NotesTags').AsString <> OldTagsValue then
     RecreateTagsList := True;
-  if IsMemoModified = True then begin
+  if IsMemoModified = True then
+  begin
     if sqNotes.FieldByName('NotesCheckPwd').AsString = '' then
       sqNotes.FieldByName('NotesText').AsWideString :=
         SaveRichMemo(0, UTF8Length(dbText.Text), True)
-    else begin
+    else
+    begin
       dcAES.InitStr(edPassword.Text, TDCP_sha1);
       sqNotes.FieldByName('NotesText').AsWideString :=
         dcAES.EncryptString(SaveRichMemo(0, UTF8Length(dbText.Text), True));
@@ -2573,7 +2922,8 @@ begin
   // Recreate tags list if necessary
   // To complete data saving; no problem if it is repeated in SaveAllData
   sqNotes.ApplyUpdates;
-  if RecreateTagsList = True then begin
+  if RecreateTagsList = True then
+  begin
     CreateTagsList;
     RecreateTagsList := False;
   end;
@@ -2583,6 +2933,8 @@ begin
   OldTagsValue := sqNotes.FieldByName('NotesTags').AsString;
   // File changed
   flFileChanged := True;
+  // Reload undo text
+  StoreUndoData;
 end;
 
 procedure TfmMain.sqNotesAfterDelete(DataSet: TDataSet);
@@ -2590,16 +2942,18 @@ begin
   // Load title and date in title grid
   // To complete data saving; no problem if it is repeated in SaveAllData
   sqNotes.ApplyUpdates;
+  ClearUndoData;
   // Load title and date in title grid
   LoadTitleDateGrid;
 end;
 
 procedure TfmMain.sqNotesAfterInsert(DataSet: TDataSet);
-  var myGUID: TGUID;
+var
+  myGUID: TGUID;
 begin
   // Insert link value
   sqNotes.FieldByName('ID_Subjects').AsInteger :=
-  sqSubjects.FieldByName('IDSubjects').AsInteger;
+    sqSubjects.FieldByName('IDSubjects').AsInteger;
   // Insert today's date
   sqNotes.FieldByName('NotesDate').AsDateTime := Date;
   // Create UID and sort
@@ -2611,23 +2965,28 @@ begin
   LoadActivitiesData;
   // To sync title grid
   sqNotes.Post;
+  ClearUndoData;
 end;
 
 procedure TfmMain.sqNotesAfterScroll(DataSet: TDataSet);
 begin
   // load Text in dbText
   dbText.Clear;
-  if sqNotes.RecordCount > 0 then begin
-    if sqNotes.FieldByName('NotesCheckPwd').AsString <> '' then begin
+  if sqNotes.RecordCount > 0 then
+  begin
+    if sqNotes.FieldByName('NotesCheckPwd').AsString <> '' then
+    begin
       ShowPasswordInput;
     end
-    else begin
+    else
+    begin
       HidePasswordInput;
       LoadRichMemo;
     end;
     LoadActivitiesData;
   end
-  else begin
+  else
+  begin
     HidePasswordInput;
     grActGrid.Clean(1, 1, grActGrid.ColCount - 1,
       grActGrid.RowCount - 1, [gzNormal]);
@@ -2637,6 +2996,8 @@ begin
   end;
   // To update the attachment list
   lbAttNames.Items.Text := sqNotes.FieldByName('NotesAttName').AsString;
+  lbListAttach.Caption := stAttachments + ' [' +
+    IntToStr(lbAttNames.Items.Count) + ']';
   // Save the current tags value
   OldTagsValue := sqNotes.FieldByName('NotesTags').AsString;
   // Update title grid
@@ -2644,8 +3005,9 @@ begin
 end;
 
 procedure TfmMain.sqNotesBeforeDelete(DataSet: TDataSet);
-  var AttDir: String;
-  i: Integer;
+var
+  AttDir: string;
+  i: integer;
   myStringList: TStringList;
 begin
   // The check for delete is in the function menu and not here
@@ -2653,35 +3015,39 @@ begin
   // when deleting a subject.
   // Delete attachment
   AttDir := ExtractFileNameWithoutExt(sqNotes.FileName);
-  if sqNotes.FieldByName('NotesAttName').AsString <> '' then try
-    if DirectoryExistsUTF8(AttDir) = False then begin
-      MessageDlg(msg030, mtWarning, [mbOK], 0);
+  if sqNotes.FieldByName('NotesAttName').AsString <> '' then
+    try
+      if DirectoryExistsUTF8(AttDir) = False then
+      begin
+        MessageDlg(msg030, mtWarning, [mbOK], 0);
+        Abort;
+      end;
+      myStringList := TStringList.Create;
+      myStringList.Text := sqNotes.FieldByName('NotesAttName').AsString;
+      for i := 0 to myStringList.Count - 1 do
+        DeleteFileUTF8(AttDir + DirectorySeparator +
+          sqNotes.FieldByName('NotesUID').AsString + '-' +
+          ExtractFileNameOnly(myStringList[i]) + '.zip');
+      myStringList.Free;
+      if IsDirectoryEmpty(AttDir) = True then
+        DeleteDirectory(AttDir, False);
+    except
+      MessageDlg(msg035, mtWarning, [mbOK], 0);
       Abort;
     end;
-    myStringList := TStringList.Create;
-    myStringList.Text := sqNotes.FieldByName('NotesAttName').AsString;
-    for i := 0 to myStringList.Count - 1 do
-      DeleteFileUTF8(AttDir + DirectorySeparator +
-         sqNotes.FieldByName('NotesUID').AsString +
-        '-' + ExtractFileNameOnly(myStringList[i]) + '.zip');
-    myStringList.Free;
-    if IsDirectoryEmpty(AttDir) = True then
-      DeleteDirectory(AttDir, False);
-  except
-    MessageDlg(msg035, mtWarning, [mbOK], 0);
-    Abort;
-  end;
   // Delete images
-  if DirectoryExistsUTF8(AttDir) = True then begin
+  if DirectoryExistsUTF8(AttDir) = True then
+  begin
     i := 0;
     try
       while FileExistsUTF8(AttDir + DirectorySeparator +
-        sqNotes.FieldByName('NotesUID').AsString +
-        '-img' + FormatFloat('0000', i) + '.jpeg') = True do begin
-          DeleteFileUTF8(AttDir + DirectorySeparator +
-             sqNotes.FieldByName('NotesUID').AsString +
-            '-img' + FormatFloat('0000', i) + '.jpeg');
-          Inc(i);
+          sqNotes.FieldByName('NotesUID').AsString + '-img' +
+          FormatFloat('0000', i) + '.jpeg') = True do
+      begin
+        DeleteFileUTF8(AttDir + DirectorySeparator +
+          sqNotes.FieldByName('NotesUID').AsString + '-img' +
+          FormatFloat('0000', i) + '.jpeg');
+        Inc(i);
       end;
       if IsDirectoryEmpty(AttDir) = True then
         DeleteDirectory(AttDir, False);
@@ -2691,7 +3057,8 @@ begin
     end;
   end;
   // Save the UID of the record to be deleted for sync
-  with sqDelRec do begin
+  with sqDelRec do
+  begin
     // DelRec must be opened and closed each time to read the modification
     // made by a sync operation by another possible session of mynotex.
     Open;
@@ -2712,8 +3079,10 @@ procedure TfmMain.EditNotesDataset;
 begin
   // Puts the notes dataset in Edit or in Insert
   // because the user has modified RichMemo
-  if dsNotes.State in [dsBrowse] then begin
-    if sqNotes.RecordCount > 0 then begin
+  if dsNotes.State in [dsBrowse] then
+  begin
+    if sqNotes.RecordCount > 0 then
+    begin
       sqNotes.Edit;
     end
     else
@@ -2741,7 +3110,8 @@ begin
   sdSaveDialog.Filter := OpenSaveDlgFilter + '|*.mnt';
   sdSaveDialog.DefaultExt := '.mnt';
   sdSaveDialog.FileName := '';
-  if sdSaveDialog.Execute = True then begin
+  if sdSaveDialog.Execute = True then
+  begin
     // No show text only
     DisableShowTextOnly;
     CreateDataTables(sdSaveDialog.FileName);
@@ -2756,7 +3126,8 @@ begin
   odOpenDialog.Filter := cpt023;
   odOpenDialog.DefaultExt := '.mnt';
   odOpenDialog.FileName := '';
-  if odOpenDialog.Execute = True then begin
+  if odOpenDialog.Execute = True then
+  begin
     // No show text only
     DisableShowTextOnly;
     OpenDataTables(odOpenDialog.FileName);
@@ -2779,13 +3150,16 @@ end;
 procedure TfmMain.miFileUndoClick(Sender: TObject);
 begin
   // Undo editing
-  if MessageDlg(msg004, mtConfirmation, [mbOK, mbCancel], 0) = mrCancel then begin
-      Abort
+  if MessageDlg(msg004, mtConfirmation, [mbOK, mbCancel], 0) = mrCancel then
+  begin
+    Abort;
   end;
-  if dsSubjects.State in [dsEdit, dsInsert] then begin
-    sqSubjects.Cancel
+  if dsSubjects.State in [dsEdit, dsInsert] then
+  begin
+    sqSubjects.Cancel;
   end;
-  if dsNotes.State in [dsEdit, dsInsert] then begin
+  if dsNotes.State in [dsEdit, dsInsert] then
+  begin
     sqNotes.Cancel;
     // To reload the text of the note
     sqNotesAfterScroll(nil);
@@ -2793,7 +3167,8 @@ begin
 end;
 
 procedure TfmMain.miFileUpdateClick(Sender: TObject);
-  var IDSub, IDNote: Integer;
+var
+  IDSub, IDNote: integer;
 begin
   //Update data
   SaveAllData;
@@ -2815,34 +3190,38 @@ begin
 end;
 
 procedure TfmMain.miFileCopyAsClick(Sender: TObject);
-  var SearchRec: TSearchRec;
-  AttOrigDir, AttDestDir: String;
+var
+  SearchRec: TSearchRec;
+  AttOrigDir, AttDestDir: string;
 begin
   // Copy current file
   sdSaveDialog.Title := cpt002;
   sdSaveDialog.Filter := OpenSaveDlgFilter + '|*.mnt';
   sdSaveDialog.DefaultExt := '.mnt';
   sdSaveDialog.FileName := '';
-  if sdSaveDialog.Execute then begin
+  if sdSaveDialog.Execute then
+  begin
     CopyFile(sqSubjects.FileName, sdSaveDialog.FileName);
     AttOrigDir := ExtractFileNameWithoutExt(sqSubjects.FileName);
-    if DirectoryExistsUTF8(AttOrigDir) = True then try
+    if DirectoryExistsUTF8(AttOrigDir) = True then
       try
-        AttDestDir := ExtractFileNameWithoutExt(sdSaveDialog.FileName);
-        CreateDirUTF8(AttDestDir);
-        // faSysFile (= normal file) to avoid that also the directory is found
-        if FindFirst(AttOrigDir + DirectorySeparator + '*', faSysFile,
-          SearchRec) = 0 then repeat
-          CopyFile(AttOrigDir + DirectorySeparator + SearchRec.Name,
-            AttDestDir + DirectorySeparator + SearchRec.Name);
-        until
-          FindNext(SearchRec) <> 0;
-      except
-        MessageDlg(msg037, mtWarning, [mbOK], 0);
+        try
+          AttDestDir := ExtractFileNameWithoutExt(sdSaveDialog.FileName);
+          CreateDirUTF8(AttDestDir);
+          // faSysFile (= normal file) to avoid that also the directory is found
+          if FindFirst(AttOrigDir + DirectorySeparator + '*', faSysFile,
+            SearchRec) = 0 then
+            repeat
+              CopyFile(AttOrigDir + DirectorySeparator + SearchRec.Name,
+                AttDestDir + DirectorySeparator + SearchRec.Name);
+            until
+              FindNext(SearchRec) <> 0;
+        except
+          MessageDlg(msg037, mtWarning, [mbOK], 0);
+        end;
+      finally
+        FindClose(SearchRec);
       end;
-    finally
-      FindClose(SearchRec) ;
-    end;
   end;
 end;
 
@@ -2852,32 +3231,33 @@ begin
   // it is called also by miFileExport and FileHTML menù
   // No show text only
   DisableShowTextOnly;
-  if ((Sender = miFileImport) or (Sender = miFileExport)) then begin
+  if ((Sender = miFileImport) or (Sender = miFileExport)) then
+  begin
     odOpenDialog.Title := cpt022;
     odOpenDialog.Filter := cpt023;
     odOpenDialog.DefaultExt := '.mnt';
     odOpenDialog.FileName := '';
     if odOpenDialog.Execute = False then
       Abort
-    else if odOpenDialog.FileName = sqSubjects.FileName then begin
+    else if odOpenDialog.FileName = sqSubjects.FileName then
+    begin
       MessageDlg(msg005, mtWarning, [mbOK], 0);
       Abort;
     end;
   end
-  else if Sender = miFileHTML then begin
+  else if Sender = miFileHTML then
+  begin
     sdSaveDialog.Title := cpt007;
     sdSaveDialog.Filter := cpt035;
     sdSaveDialog.DefaultExt := '.html';
     sdSaveDialog.FileName := '';
     if sdSaveDialog.Execute = False then
-      Abort
-    else if FileExistsUTF8(sdSaveDialog.FileName) = True then begin
-      if MessageDlg(msg026, mtWarning, [mbOK, mbCancel], 0) = mrCancel then
       Abort;
-    end;
   end;
-  with fmImpExp do begin
-    if Sender = miFileImport then begin
+  with fmImpExp do
+  begin
+    if Sender = miFileImport then
+    begin
       Caption := cpt003;
       lbSubjects.Caption := cpt004;
       bnImpExp.Caption := cpt005;
@@ -2896,7 +3276,8 @@ begin
       sqWriteNotes.FileName := sqSubjects.FileName;
       sqWriteDelRec.FileName := sqSubjects.FileName;
     end
-    else if Sender = miFileExport then begin
+    else if Sender = miFileExport then
+    begin
       Caption := cpt007;
       lbSubjects.Caption := cpt008;
       bnImpExp.Caption := cpt009;
@@ -2915,7 +3296,8 @@ begin
       sqWriteNotes.FileName := odOpenDialog.FileName;
       sqWriteDelRec.FileName := odOpenDialog.FileName;
     end
-    else if Sender = miFileHTML then begin
+    else if Sender = miFileHTML then
+    begin
       Caption := cpt007;
       lbSubjects.Caption := cpt008;
       bnImpExp.Caption := cpt009;
@@ -2940,7 +3322,8 @@ begin
         'Select * from Subjects order by SubjectsSort';
     sqReadNotes.TableName := 'Notes';
     sqReadNotes.PrimaryKey := 'IDNotes';
-    if ((Sender = miFileImport) or (Sender = miFileExport)) then begin
+    if ((Sender = miFileImport) or (Sender = miFileExport)) then
+    begin
       sqWriteSubjects.TableName := 'Subjects';
       sqWriteSubjects.PrimaryKey := 'IDSubjects';
       sqWriteNotes.TableName := 'Notes';
@@ -2952,7 +3335,8 @@ begin
     end;
     try
       sqReadSubjects.Open;
-      if sqReadSubjects.RecordCount = 0 then begin
+      if sqReadSubjects.RecordCount = 0 then
+      begin
         if Sender = miFileImport then
           MessageDlg(msg060, mtWarning, [mbOK], 0)
         else
@@ -2961,14 +3345,16 @@ begin
         Exit;
       end;
       // sqReadNotes will be opened later with the proper sql statement
-      if ((Sender = miFileImport) or (Sender = miFileExport)) then begin
+      if ((Sender = miFileImport) or (Sender = miFileExport)) then
+      begin
         sqWriteSubjects.Open;
         sqWriteNotes.Open;
         sqWriteDelRec.Open;
         sqReadDelRec.Open;
       end;
     except
-      if ((Sender = miFileImport) or (Sender = miFileExport)) then begin
+      if ((Sender = miFileImport) or (Sender = miFileExport)) then
+      begin
         sqReadSubjects.Close;
         sqWriteSubjects.Close;
         sqWriteNotes.Close;
@@ -2977,14 +3363,16 @@ begin
         MessageDlg(msg007, mtWarning, [mbOK], 0);
         Abort;
       end
-      else begin
+      else
+      begin
         sqReadSubjects.Close;
         MessageDlg(msg025, mtWarning, [mbOK], 0);
         Abort;
       end;
     end;
     cbReadSubjects.Items.Clear;
-    while not sqReadSubjects.EOF do begin
+    while not sqReadSubjects.EOF do
+    begin
       cbReadSubjects.Items.Add(sqReadSubjects.FieldByName('SubjectsName').AsString);
       sqReadSubjects.Next;
     end;
@@ -2994,22 +3382,25 @@ begin
 end;
 
 procedure TfmMain.miConvertTomboyClick(Sender: TObject);
-  var DataPath, AppName: String;
+var
+  DataPath, AppName: string;
 begin
   // Convert from Tomboy and GNote
   SaveAllData;
-  if Sender = miConvertTomboy then begin
+  if Sender = miConvertTomboy then
+  begin
     AppName := 'Tomboy';
     DataPath := GetEnvironmentVariable('HOME') + DirectorySeparator +
       '.local/share/tomboy';
   end
-  else if Sender = miConvertGNote then begin
+  else if Sender = miConvertGNote then
+  begin
     AppName := 'GNote';
     DataPath := GetEnvironmentVariable('HOME') + DirectorySeparator +
       '.local/share/gnote';
   end;
-  if MessageDlg(msg049 + ' ' + AppName + '?', mtConfirmation,
-    [mbOK, mbCancel], 0) = mrCancel then
+  if MessageDlg(msg049 + ' ' + AppName + '?', mtConfirmation, [mbOK, mbCancel], 0) =
+    mrCancel then
     Abort;
   ConvertFromTomboyGnote(DataPath);
 end;
@@ -3025,11 +3416,13 @@ begin
   // Open last1 file
   // No show text only
   DisableShowTextOnly;
-  if FileExistsUTF8(LastDatabase1) then begin
-    OpenDataTables(LastDatabase1)
+  if FileExistsUTF8(LastDatabase1) then
+  begin
+    OpenDataTables(LastDatabase1);
   end
-  else begin
-    MessageDlg(msg008, mtWarning, [mbOK], 0)
+  else
+  begin
+    MessageDlg(msg008, mtWarning, [mbOK], 0);
   end;
 end;
 
@@ -3038,11 +3431,13 @@ begin
   // Open last2 file
   // No show text only
   DisableShowTextOnly;
-  if FileExistsUTF8(LastDatabase2) then begin
-    OpenDataTables(LastDatabase2)
+  if FileExistsUTF8(LastDatabase2) then
+  begin
+    OpenDataTables(LastDatabase2);
   end
-  else begin
-    MessageDlg(msg008, mtWarning, [mbOK], 0)
+  else
+  begin
+    MessageDlg(msg008, mtWarning, [mbOK], 0);
   end;
 end;
 
@@ -3051,11 +3446,13 @@ begin
   // Open last3 file
   // No show text only
   DisableShowTextOnly;
-  if FileExistsUTF8(LastDatabase3) then begin
-    OpenDataTables(LastDatabase3)
+  if FileExistsUTF8(LastDatabase3) then
+  begin
+    OpenDataTables(LastDatabase3);
   end
-  else begin
-    MessageDlg(msg008, mtWarning, [mbOK], 0)
+  else
+  begin
+    MessageDlg(msg008, mtWarning, [mbOK], 0);
   end;
 end;
 
@@ -3064,11 +3461,13 @@ begin
   // Open last4 file
   // No show text only
   DisableShowTextOnly;
-  if FileExistsUTF8(LastDatabase4) then begin
-    OpenDataTables(LastDatabase4)
+  if FileExistsUTF8(LastDatabase4) then
+  begin
+    OpenDataTables(LastDatabase4);
   end
-  else begin
-    MessageDlg(msg008, mtWarning, [mbOK], 0)
+  else
+  begin
+    MessageDlg(msg008, mtWarning, [mbOK], 0);
   end;
 end;
 
@@ -3141,14 +3540,16 @@ begin
 end;
 
 procedure TfmMain.miSubjectOrderTitleClick(Sender: TObject);
-  var iIDSub: Integer;
+var
+  iIDSub: integer;
 begin
   // Change order of notes; this events is triggered also
   // by miSubjectOrderCustom
   SaveAllData;
   // No show text only
   DisableShowTextOnly;
-  with sqSubjects do begin
+  with sqSubjects do
+  begin
     iIDSub := FieldByName('IDSubjects').AsInteger;
     Close;
     if miSubjectOrderTitle.Checked = True then
@@ -3176,19 +3577,28 @@ begin
   // Delete note
   // No show text only
   DisableShowTextOnly;
-  if MessageDlg(msg009, mtConfirmation, [mbOK, mbCancel], 0) = mrCancel then begin
-    Abort
+  if MessageDlg(msg009, mtConfirmation, [mbOK, mbCancel], 0) = mrCancel then
+  begin
+    Abort;
   end
-  else begin
+  else
+  begin
     sqNotes.Delete;
     sqNotes.ApplyUpdates;
   end;
-    // Recreate tags list if necessary
-  if RecreateTagsList = True then begin
+  // Recreate tags list if necessary
+  if RecreateTagsList = True then
+  begin
     CreateTagsList;
     RecreateTagsList := False;
     OldTagsValue := '';
   end;
+end;
+
+procedure TfmMain.miNotesUndoClick(Sender: TObject);
+begin
+  // Replace note text with the stored one
+  GetUndoData;
 end;
 
 procedure TfmMain.miOrderByDateClick(Sender: TObject);
@@ -3198,23 +3608,28 @@ begin
   SaveAllData;
   // No show text only
   DisableShowTextOnly;
-  with sqNotes do begin
+  with sqNotes do
+  begin
     Close;
-    if miOrderByTitle.Checked = True then begin
+    if miOrderByTitle.Checked = True then
+    begin
       SQL := 'Select * from Notes where ID_Subjects = ' +
         sqSubjects.FieldByName('IDSubjects').AsString +
-        ' order by NotesTitle collate nocase, IDNotes'
+        ' order by NotesTitle collate nocase, IDNotes';
     end
-    else if miOrderByDate.Checked = True then begin
+    else if miOrderByDate.Checked = True then
+    begin
       SQL := 'Select * from Notes where Notes.ID_Subjects = ' +
-        sqSubjects.FieldByName('IDSubjects').AsString + ' order by NotesDate, IDNotes'
+        sqSubjects.FieldByName('IDSubjects').AsString + ' order by NotesDate, IDNotes';
     end
-    else begin
-    SQL := 'Select * from Notes where Notes.ID_Subjects = ' +
-      sqSubjects.FieldByName('IDSubjects').AsString + ' order by NotesSort'
+    else
+    begin
+      SQL := 'Select * from Notes where Notes.ID_Subjects = ' +
+        sqSubjects.FieldByName('IDSubjects').AsString + ' order by NotesSort';
     end;
     // To show the last note if order by note is active
-    if miOrderByDate.Checked = True then begin
+    if miOrderByDate.Checked = True then
+    begin
       // sqNotes.DisableControls does not work, so...
       IsTextToLoad := False;
       Open;
@@ -3223,10 +3638,14 @@ begin
       if RecordCount > 0 then
         Last;
     end
-    else begin
+    else
+    begin
       Open;
     end;
   end;
+  // This is necessary to change immediately the order of the notes
+  // without scrolling the subjects
+  miFileUpdateClick(nil);
   bnNotesUp.Enabled := miOrderCustom.Checked;
   bnNotesDown.Enabled := miOrderCustom.Checked;
 end;
@@ -3235,13 +3654,16 @@ procedure TfmMain.miNotesEncDecryptClick(Sender: TObject);
 begin
   // Encrypt and decrypt text
   SaveAllData;
-  if pnPassword.Visible = True then begin
+  if pnPassword.Visible = True then
+  begin
     MessageDlg(msg042, mtInformation, [mbOK], 0);
     Abort;
   end;
   // The text must be encrypted
-  if sqNotes.FieldByName('NotesCheckPwd').AsString = '' then begin
-    with fmEncryption do begin
+  if sqNotes.FieldByName('NotesCheckPwd').AsString = '' then
+  begin
+    with fmEncryption do
+    begin
       Caption := fmMain.cpt030;
       lbEncrypt.Caption := fmMain.cpt031;
       cbShowChar.Caption := fmMain.cpt032;
@@ -3253,20 +3675,22 @@ begin
     end;
   end
   // The text must be decrypted
-  else begin
-    if MessageDlg(msg041, mtConfirmation, [mbOK, mbCancel], 0) = mrOK then try
-      Screen.Cursor := crHourGlass;
-      Application.ProcessMessages;
-      sqNotes.Edit;
-      dcAES.InitStr(edPassword.Text, TDCP_sha1);
-      sqNotes.FieldByName('NotesText').AsWideString :=
-        dcAES.DecryptString(sqNotes.FieldByName('NotesText').AsWideString);
-      fmMain.sqNotes.FieldByName('NotesCheckPwd').AsString := '';
-      fmMain.sqNotes.Post;
-      fmMain.sqNotes.ApplyUpdates;
-    finally
-      Screen.Cursor := crDefault;
-    end;
+  else
+  begin
+    if MessageDlg(msg041, mtConfirmation, [mbOK, mbCancel], 0) = mrOk then
+      try
+        Screen.Cursor := crHourGlass;
+        Application.ProcessMessages;
+        sqNotes.Edit;
+        dcAES.InitStr(edPassword.Text, TDCP_sha1);
+        sqNotes.FieldByName('NotesText').AsWideString :=
+          dcAES.DecryptString(sqNotes.FieldByName('NotesText').AsWideString);
+        fmMain.sqNotes.FieldByName('NotesCheckPwd').AsString := '';
+        fmMain.sqNotes.Post;
+        fmMain.sqNotes.ApplyUpdates;
+      finally
+        Screen.Cursor := crDefault;
+      end;
   end;
 end;
 
@@ -3279,7 +3703,8 @@ begin
 end;
 
 procedure TfmMain.miNotesMoveClick(Sender: TObject);
-  var OrigSQL: String;
+var
+  OrigSQL: string;
 begin
   // Move a note
   SaveAllData;
@@ -3298,18 +3723,19 @@ begin
   fmMoveNote.sqMoveSubjects.PrimaryKey := 'IDSubjects';
   OrigSQL := sqSubjects.SQL;
   // Current subject is excluded
-  OrigSQL := StringReplace(OrigSQL, 'order by',
-    'where IDSubjects <> ' +
-    IntTostr(sqSubjects.FieldByName('IDSubjects').AsInteger) +
+  OrigSQL := StringReplace(OrigSQL, 'order by', 'where IDSubjects <> ' +
+    IntToStr(sqSubjects.FieldByName('IDSubjects').AsInteger) +
     ' order by', [rfIgnoreCase]);
   fmMoveNote.sqMoveSubjects.SQL := OrigSQL;
   fmMoveNote.sqMoveSubjects.Open;
-  if fmMoveNote.sqMoveSubjects.RecordCount = 0 then begin
+  if fmMoveNote.sqMoveSubjects.RecordCount = 0 then
+  begin
     fmMoveNote.sqMoveSubjects.Close;
     MessageDlg(msg043, mtInformation, [mbOK], 0);
     Exit;
   end
-  else begin
+  else
+  begin
     fmMoveNote.ShowModal;
   end;
 end;
@@ -3323,24 +3749,25 @@ end;
 
 procedure TfmMain.miNotesSendToLOClick(Sender: TObject);
 begin
-// Send to LibreOffice Writer
+  // Send to LibreOffice Writer
   tbOpenNote.Tag := 1;
   tbOpenNoteClick(nil);
 end;
 
 procedure TfmMain.miNotesSendToBrowserClick(Sender: TObject);
 begin
-// Send to browser
+  // Send to browser
   tbOpenNote.Tag := 2;
   tbOpenNoteClick(nil);
 end;
 
 procedure TfmMain.miNotesInsertClick(Sender: TObject);
-  var myZip: TUnZipper;
+var
+  myZip: TUnZipper;
   myList, stXML, stFileOrig, stStyleSheet: TStringList;
-  i, idxXML: Integer;
-  stOutput, stOutputWithTags, ssName, ssCodes: String;
-  flCopy: Boolean;
+  i, idxXML: integer;
+  stOutput, stOutputWithTags, ssName, ssCodes: string;
+  flCopy: boolean;
   Fp: TFontParams;
 begin
   // Insert file in a new note
@@ -3356,21 +3783,23 @@ begin
   Screen.Cursor := crHourGlass;
   Application.ProcessMessages;
   // Open a text file
-  if UpperCase(ExtractFileExt(odOpenDialog.FileName)) = '.TXT' then try
+  if UpperCase(ExtractFileExt(odOpenDialog.FileName)) = '.TXT' then
     try
-      myList := TStringList.Create;
-      myList.LoadFromFile(odOpenDialog.FileName);
-      stOutput := myList.Text;
-    except
-      MessageDlg(msg028, mtWarning, [mbOK], 0);
-      Screen.Cursor := crDefault;
-      Abort;
-    end;
-  finally
-    myList.Free;
-  end
+      try
+        myList := TStringList.Create;
+        myList.LoadFromFile(odOpenDialog.FileName);
+        stOutput := myList.Text;
+      except
+        MessageDlg(msg028, mtWarning, [mbOK], 0);
+        Screen.Cursor := crDefault;
+        Abort;
+      end;
+    finally
+      myList.Free;
+    end
   // Open Writer file and extract content.xml
-  else if UpperCase(ExtractFileExt(odOpenDialog.FileName)) = '.ODT' then begin
+  else if UpperCase(ExtractFileExt(odOpenDialog.FileName)) = '.ODT' then
+  begin
     myZip := TUnZipper.Create;
     myList := TStringList.Create;
     stXML := TStringList.Create;
@@ -3395,16 +3824,18 @@ begin
     end;
     //Parse XML file
     // Select only styles section
-    stXML.Text := Copy(stFileOrig.Text, Pos('<office:automatic-styles>', stFileOrig.Text),
-      Pos('</office:automatic-styles>', stFileOrig.Text) -
+    stXML.Text := Copy(stFileOrig.Text, Pos('<office:automatic-styles>',
+      stFileOrig.Text), Pos('</office:automatic-styles>', stFileOrig.Text) -
       Pos('<office:automatic-styles>', stFileOrig.Text) +
       Length('</office:automatic-styles>'));
     stStyleSheet := TStringList.Create;
     // Get paragraph stiles
-    for i := 1 to 10000 do begin
+    for i := 1 to 10000 do
+    begin
       idxXML := Pos('<style:style style:name="P' + IntToStr(i) +
-        '" style:family="paragraph"', stXML.text);
-      if idxXML > 0 then begin
+        '" style:family="paragraph"', stXML.Text);
+      if idxXML > 0 then
+      begin
         stStyleSheet.Add('P' + IntToStr(i) + '-');
         stXML.Text := Copy(stXML.Text, idxXML, Length(stXML.Text) - idxXML);
         // Bold
@@ -3430,15 +3861,18 @@ begin
             stStyleSheet.Strings[stStyleSheet.Count - 1] :=
               stStyleSheet.Strings[stStyleSheet.Count - 1] + 's';
       end
-      else begin
+      else
+      begin
         Break;
       end;
     end;
     // Get text stiles
-    for i := 1 to 10000 do begin
+    for i := 1 to 10000 do
+    begin
       idxXML := Pos('<style:style style:name="T' + IntToStr(i) +
-        '" style:family="text">', stXML.text);
-      if idxXML > 0 then begin
+        '" style:family="text">', stXML.Text);
+      if idxXML > 0 then
+      begin
         stStyleSheet.Add('T' + IntToStr(i) + '-');
         stXML.Text := Copy(stXML.Text, idxXML, Length(stXML.Text) - idxXML);
         // Bold
@@ -3464,53 +3898,60 @@ begin
             stStyleSheet.Strings[stStyleSheet.Count - 1] :=
               stStyleSheet.Strings[stStyleSheet.Count - 1] + 's';
       end
-      else begin
+      else
+      begin
         Break;
       end;
     end;
-     // Select only text section
-     // #3 will be replaced with < and #4 with >
-    stXML.text := Copy(stFileOrig.Text, Pos('<office:body>', stFileOrig.Text),
+    // Select only text section
+    // #3 will be replaced with < and #4 with >
+    stXML.Text := Copy(stFileOrig.Text, Pos('<office:body>', stFileOrig.Text),
       Pos('</office:body>', stFileOrig.Text) - Pos('<office:body>', stFileOrig.Text) +
       Length('</office:body>'));
-    for i := 0 to stStyleSheet.Count - 1 do begin
-      ssName := Copy(stStyleSheet.Strings[i], 0,
-        Pos('-', stStyleSheet.Strings[i]) - 1);
-      ssCodes := Copy(stStyleSheet.Strings[i], Pos('-', stStyleSheet.Strings[i]) + 1,
-        Length(stStyleSheet.Strings[i]) - Pos('-', stStyleSheet.Strings[i]));
-      if ssCodes <> '' then begin
+    for i := 0 to stStyleSheet.Count - 1 do
+    begin
+      ssName := Copy(stStyleSheet.Strings[i], 0, Pos('-',
+        stStyleSheet.Strings[i]) - 1);
+      ssCodes := Copy(stStyleSheet.Strings[i], Pos('-', stStyleSheet.Strings[i]) +
+        1, Length(stStyleSheet.Strings[i]) - Pos('-', stStyleSheet.Strings[i]));
+      if ssCodes <> '' then
+      begin
         // Change paragraph style
-        while Pos('<text:p text:style-name="' + ssName + '">', stXML.Text) > 0 do begin
+        while Pos('<text:p text:style-name="' + ssName + '">', stXML.Text) > 0 do
+        begin
           // change to <*******> all the </text:p> *before* the string that will be changed
           while ((Pos('</text:p>', stXML.Text) > 0) and
-            (Pos('</text:p>', stXML.Text) < Pos('<text:p text:style-name="' +
-            ssName + '">', stXML.Text))) do
+              (Pos('</text:p>', stXML.Text) < Pos('<text:p text:style-name="' +
+              ssName + '">', stXML.Text))) do
             stXML.Text := StringReplace(stXML.Text, '</text:p>', '<*******>', []);
           // change the string
           stXML.Text := StringReplace(stXML.Text,
             '<text:p text:style-name="' + ssName + '">', #3 + ssCodes + #4, []);
           // the first </text:p> is the one just after the replaced string
-          stXML.Text := StringReplace(stXML.Text,
-            '</text:p>', #3 + '/' + ssCodes + #4 + LineEnding, []);
+          stXML.Text := StringReplace(stXML.Text, '</text:p>',
+            #3 + '/' + ssCodes + #4 + LineEnding, []);
         end;
         // Restore then </text:p> tag
-        stXML.Text := StringReplace(stXML.Text, '<*******>', '</text:p>', [rfReplaceAll]);
+        stXML.Text := StringReplace(stXML.Text, '<*******>', '</text:p>',
+          [rfReplaceAll]);
         // Change text style
-        while Pos('<text:span text:style-name="' + ssName + '">', stXML.Text) > 0 do begin
+        while Pos('<text:span text:style-name="' + ssName + '">', stXML.Text) > 0 do
+        begin
           // change to <*******> all the </text:span> *before* the string that will be changed
           while ((Pos('</text:span>', stXML.Text) > 0) and
-            (Pos('</text:span>', stXML.Text) < Pos('<text:span text:style-name="' +
-            ssName + '">', stXML.Text))) do
+              (Pos('</text:span>', stXML.Text) <
+              Pos('<text:span text:style-name="' + ssName + '">', stXML.Text))) do
             stXML.Text := StringReplace(stXML.Text, '</text:span>', '<*******>', []);
           // change the string
           stXML.Text := StringReplace(stXML.Text,
             '<text:span text:style-name="' + ssName + '">', #3 + ssCodes + #4, []);
           // the first </text:span> is the one just after the replaced string
-          stXML.Text := StringReplace(stXML.Text,
-            '</text:span>', #3 + '/' + ssCodes + #4, []);
+          stXML.Text := StringReplace(stXML.Text, '</text:span>',
+            #3 + '/' + ssCodes + #4, []);
         end;
         // restore then </text:span> tag
-        stXML.Text := StringReplace(stXML.Text,  '<*******>', '</text:span>',[rfReplaceAll]);
+        stXML.Text := StringReplace(stXML.Text, '<*******>',
+          '</text:span>', [rfReplaceAll]);
       end;
     end;
     stStyleSheet.Free;
@@ -3519,8 +3960,10 @@ begin
     // Replace the tags for footnotes
     stXML.Text := StringReplace(stXML.Text, '<text:note ', ' [<', [rfReplaceAll]);
     stXML.Text := StringReplace(stXML.Text, '</text:note>', ']', [rfReplaceAll]);
-    stXML.Text := StringReplace(stXML.Text, '</text:note-citation>', '. ', [rfReplaceAll]);
-    stXML.Text := StringReplace(stXML.Text, '</text:p></text:note-body>', '', [rfReplaceAll]);
+    stXML.Text := StringReplace(stXML.Text, '</text:note-citation>',
+      '. ', [rfReplaceAll]);
+    stXML.Text := StringReplace(stXML.Text, '</text:p></text:note-body>',
+      '', [rfReplaceAll]);
     // Replace the tags which implies a CR
     stXML.Text := StringReplace(stXML.Text, 'text:name="Illustration"/>', '>', []);
     stXML.Text := StringReplace(stXML.Text, 'text:name="Table"/>', '>', []);
@@ -3529,8 +3972,10 @@ begin
     // Empty paragraph
     stXML.Text := StringReplace(stXML.Text, '"/>', '>' + LineEnding, [rfReplaceAll]);
     stXML.Text := StringReplace(stXML.Text, '<text:h', LineEnding + '<', [rfReplaceAll]);
-    stXML.Text := StringReplace(stXML.Text, '</text:h>', LineEnding + LineEnding, [rfReplaceAll]);
-    stXML.Text := StringReplace(stXML.Text, '<text:line-break/>', LineEnding, [rfReplaceAll]);
+    stXML.Text := StringReplace(stXML.Text, '</text:h>', LineEnding +
+      LineEnding, [rfReplaceAll]);
+    stXML.Text := StringReplace(stXML.Text, '<text:line-break/>',
+      LineEnding, [rfReplaceAll]);
     stXML.Text := StringReplace(stXML.Text, '</text:p>', LineEnding, [rfReplaceAll]);
 
     // Clear other HTML tags
@@ -3538,7 +3983,8 @@ begin
     stOutputWithTags := stXML.Text;
     stXML.Free;
     flCopy := True;
-    for i := 1 to Length(stOutputWithTags) do begin
+    for i := 1 to Length(stOutputWithTags) do
+    begin
       if stOutputWithTags[i] = '<' then
         flCopy := False
       else if stOutputWithTags[i] = '>' then
@@ -3548,7 +3994,7 @@ begin
       Application.ProcessMessages;
     end;
     // Delete possibile CR at the beginning
-    if Copy(stOutput, 0, 1 ) = LineEnding then
+    if Copy(stOutput, 0, 1) = LineEnding then
       stOutput := Copy(stOutput, 2, Length(stOutput) - 2);
     // Restore ‹ and › char (in HTML are &lt; and &gt;), not as < and >
     // to avoid confusion with html tags
@@ -3572,8 +4018,8 @@ begin
   sqNotes.Edit;
   sqNotes.FieldByName('NotesTitle').AsString :=
     ExtractFileNameOnly(odOpenDialog.FileName);
-  sqNotes.FieldByName('NotesText').AsString := '<font color="#000000"' +
-    ' size="' + IntToStr(Fp.Size) + '"' +
+  sqNotes.FieldByName('NotesText').AsString :=
+    '<font color="#000000"' + ' size="' + IntToStr(Fp.Size) + '"' +
     ' face="' + Fp.Name + '">' + StOutput + '</font>';
   sqNotes.Post;
   sqNotes.ApplyUpdates;
@@ -3596,23 +4042,27 @@ begin
 end;
 
 procedure TfmMain.miAttachOpenClick(Sender: TObject);
-  var myUnZip: TUnZipper;
+var
+  myUnZip: TUnZipper;
   myList: TStringList;
-  AttDir, OrigFileName, OutDir: String;
+  AttDir, OrigFileName, OutDir: string;
 begin
   // Open and Save As attachment (miAttachOpen and miAttachSaveAs)
   // No show text only
   DisableShowTextOnly;
   AttDir := ExtractFileNameWithoutExt(sqSubjects.FileName);
-  if DirectoryExistsUTF8(AttDir) = False then begin
+  if DirectoryExistsUTF8(AttDir) = False then
+  begin
     MessageDlg(msg030, mtWarning, [mbOK], 0);
     Abort;
   end;
-  if lbAttNames.ItemIndex < 0 then begin
+  if lbAttNames.ItemIndex < 0 then
+  begin
     MessageDlg(msg031, mtWarning, [mbOK], 0);
     Abort;
   end;
-  if ((Sender = miAttachSaveAs) or (Sender = pmAttSaveAs)) then begin
+  if ((Sender = miAttachSaveAs) or (Sender = pmAttSaveAs)) then
+  begin
     // Title of the TSelectDirectoryDialog do not work, up to now, anyway...
     sdSelDirDialog.Title := cpt054;
     if sdSelDirDialog.Execute then
@@ -3621,7 +4071,8 @@ begin
       Abort;
   end
   // The other Sender could be miAttachOpen or lbAttNames (double clic)
-  else begin
+  else
+  begin
     OutDir := GetTempDir;
   end;
   try
@@ -3635,8 +4086,8 @@ begin
       myList.Add(OrigFileName);
       myUnZip.OutputPath := OutDir;
       myUnZip.FileName := AttDir + DirectorySeparator +
-        sqNotes.FieldByName('NotesUID').AsString +
-        '-' + ExtractFileNameOnly(OrigFileName) + '.zip';
+        sqNotes.FieldByName('NotesUID').AsString + '-' +
+        ExtractFileNameOnly(OrigFileName) + '.zip';
       myUnZip.UnZipFiles(myList);
       if ((Sender <> miAttachSaveAs) and (Sender <> pmAttSaveAs)) then
         OpenDocument(OutDir + DirectorySeparator + OrigFileName);
@@ -3651,14 +4102,16 @@ begin
 end;
 
 procedure TfmMain.miAttachDeleteClick(Sender: TObject);
-  var AttDir, OrigFileName: String;
+var
+  AttDir, OrigFileName: string;
 begin
   // Delete attachment
   // No show text only
   DisableShowTextOnly;
   AttDir := ExtractFileNameWithoutExt(sqSubjects.FileName);
-  if DirectoryExistsUTF8(AttDir) = False then begin
-    if MessageDlg(msg030, mtWarning, [mbOK, mbCancel], 0) = mrOK then
+  if DirectoryExistsUTF8(AttDir) = False then
+  begin
+    if MessageDlg(msg030, mtWarning, [mbOK, mbCancel], 0) = mrOk then
     begin
       lbAttNames.Items.Delete(lbAttNames.ItemIndex);
       sqNotes.Edit;
@@ -3668,7 +4121,8 @@ begin
     end;
     Abort;
   end;
-  if lbAttNames.ItemIndex < 0 then begin
+  if lbAttNames.ItemIndex < 0 then
+  begin
     MessageDlg(msg031, mtWarning, [mbOK], 0);
     Abort;
   end;
@@ -3677,8 +4131,8 @@ begin
   try
     OrigFileName := lbAttNames.Items.ValueFromIndex[lbAttNames.ItemIndex];
     DeleteFileUTF8(AttDir + DirectorySeparator +
-      sqNotes.FieldByName('NotesUID').AsString +
-      '-' + ExtractFileNameOnly(OrigFileName) + '.zip');
+      sqNotes.FieldByName('NotesUID').AsString + '-' +
+      ExtractFileNameOnly(OrigFileName) + '.zip');
     lbAttNames.Items.Delete(lbAttNames.ItemIndex);
     sqNotes.Edit;
     sqNotes.FieldByName('NotesAttName').AsString := lbAttNames.Items.Text;
@@ -3686,16 +4140,21 @@ begin
     sqNotes.ApplyUpdates;
     if IsDirectoryEmpty(AttDir) = True then
       DeleteDirectory(AttDir, False);
+    lbListAttach.Caption := stAttachments + ' [' +
+      IntToStr(lbAttNames.Items.Count) + ']';
   except
     MessageDlg(msg035, mtWarning, [mbOK], 0);
+    lbListAttach.Caption := stAttachments + ' [' +
+      IntToStr(lbAttNames.Items.Count) + ']';
   end;
 end;
 
 procedure TfmMain.miTagsRenameClick(Sender: TObject);
-  var stMessage, stTag, OldValue, NewValue: String;
+var
+  stMessage, stTag, OldValue, NewValue: string;
   sqTags: TSqlite3Dataset;
-  IDNote: Integer;
-  ResultInput: Boolean;
+  IDNote: integer;
+  ResultInput: boolean;
 begin
   //Rename or remove a tag in the archive in use
   // Event also for miTagsRemove
@@ -3706,9 +4165,9 @@ begin
     stMessage := msg045;
   if MessageDlg(stMessage, mtConfirmation, [mbOK, mbCancel], 0) = mrCancel then
     Exit;
-  if lbTagsNames.ItemIndex > - 1 then
+  if lbTagsNames.ItemIndex > -1 then
     stTag := UTF8Copy(lbTagsNames.Items[lbTagsNames.ItemIndex], 1,
-    UTF8Pos('[', lbTagsNames.Items[lbTagsNames.ItemIndex]) - 2)
+      UTF8Pos('[', lbTagsNames.Items[lbTagsNames.ItemIndex]) - 2)
   else
     stTag := '';
   ResultInput := InputQuery(msg046, msg047, stTag);
@@ -3716,7 +4175,8 @@ begin
     Exit;
   OldValue := stTag;
   stTag := '';
-  if Sender = miTagsRename then begin
+  if Sender = miTagsRename then
+  begin
     ResultInput := InputQuery(msg046, msg048, stTag);
     if ResultInput = False then
       Exit;
@@ -3730,18 +4190,20 @@ begin
     sqTags.PrimaryKey := 'IDNotes';
     sqTags.SQL := 'Select IDNotes, NotesTags from Notes where NotesTags not null';
     sqTags.Open;
-    while not sqTags.EOF do begin
+    while not sqTags.EOF do
+    begin
       if ((sqTags.FieldByName('NotesTags').AsString = OldValue) or
-        (UTF8Pos(OldValue + ', ',
-        sqTags.FieldByName('NotesTags').AsString) > 0) or
-        (UTF8Pos(', ' + OldValue,
-        sqTags.FieldByName('NotesTags').AsString) > 0)) then begin
+        (UTF8Pos(OldValue + ', ', sqTags.FieldByName('NotesTags').AsString) >
+        0) or (UTF8Pos(', ' + OldValue, sqTags.FieldByName(
+        'NotesTags').AsString) > 0)) then
+      begin
         sqTags.Edit;
         if Sender = miTagsRename then
           sqTags.FieldByName('NotesTags').AsString :=
             StringReplace(sqTags.FieldByName('NotesTags').AsString,
             OldValue, NewValue, [])
-        else if Sender = miTagsRemove then begin
+        else if Sender = miTagsRemove then
+        begin
           sqTags.FieldByName('NotesTags').AsString :=
             StringReplace(sqTags.FieldByName('NotesTags').AsString,
             OldValue + ', ', '', []);
@@ -3758,15 +4220,17 @@ begin
       Application.ProcessMessages;
       sqTags.Next;
     end;
-    if sqNotes.RecordCount > 0 then begin
+    if sqNotes.RecordCount > 0 then
+    begin
       IDNote := sqNotes.FieldByName('IDNotes').AsInteger;
       sqNotes.Close;
       IsTextToLoad := False;
       sqNotes.Open;
-      IsTextToLoad := True;
       sqNotes.Locate('IDNotes', IDNote, []);
+      IsTextToLoad := True;
+      sqNotesAfterScroll(nil);
       CreateTagsList;
-   end;
+    end;
   finally
     Screen.Cursor := crDefault;
     sqTags.Free;
@@ -3805,9 +4269,14 @@ begin
   SaveAllData;
   // No show text only
   DisableShowTextOnly;
+  if miNotesShowActivities.Checked = True then
+  begin
+    miNotesShowActivitiesClick(nil);
+  end;
   miNotesFind.Checked := not miNotesFind.Checked;
   tbFind.Down := miNotesFind.Checked;
-  if miNotesFind.Checked then begin
+  if miNotesFind.Checked then
+  begin
     // No only text on search
     miNotesShowOnlyText.Enabled := False;
     // No change order during search
@@ -3823,7 +4292,8 @@ begin
     edFindText.Clear;
     edFindText.SetFocus;
   end
-  else begin
+  else
+  begin
     miNotesShowOnlyText.Enabled := True;
     miNotesOrderBy.Enabled := True;
     miOrderByDate.Enabled := True;
@@ -3834,6 +4304,8 @@ begin
     pnFindText.Visible := False;
     lbFound.Caption := cpt011;
     sqFind.Close;
+    bnFind2.Enabled := False;
+    meSearchCond.Clear;
   end;
 end;
 
@@ -3841,8 +4313,8 @@ procedure TfmMain.miNotesPrintClick(Sender: TObject);
 begin
   // Print the current note
   SaveAllData;
-  if MessageDlg(msg062, mtConfirmation,
-    [mbOK, mbCancel], 0) = mrCancel then Abort;
+  if MessageDlg(msg062, mtConfirmation, [mbOK, mbCancel], 0) = mrCancel then
+    Abort;
   tbOpenNoteClick(miNotesPrint);
 end;
 
@@ -3851,7 +4323,8 @@ begin
   // Show only memo text
   miNotesShowOnlyText.Checked := not miNotesShowOnlyText.Checked;
   SaveAllData;
-  if miNotesShowOnlyText.Checked = True then begin
+  if miNotesShowOnlyText.Checked = True then
+  begin
     grTitles.Visible := False;
     pnGridSubjects.Visible := False;
     pnBtnSubjects.Visible := False;
@@ -3865,7 +4338,8 @@ begin
     dbText.SetFocus;
     tmTimerSave.Enabled := True;
   end
-  else begin
+  else
+  begin
     grTitles.Visible := True;
     pnGridSubjects.Visible := True;
     pnBtnSubjects.Visible := True;
@@ -3883,6 +4357,10 @@ end;
 procedure TfmMain.miNotesShowActivitiesClick(Sender: TObject);
 begin
   // Show activities
+  if miNotesFind.Checked = True then
+  begin
+    miNotesFindClick(nil);
+  end;
   miNotesShowActivities.Checked := not miNotesShowActivities.Checked;
   pnActivities.Visible := miNotesShowActivities.Checked;
   spActivities.Visible := miNotesShowActivities.Checked;
@@ -3905,197 +4383,202 @@ begin
   fmCalendar.stAll := cpt084;
   fmCalendar.stNoRes := cpt085;
   fmCalendar.stNoDate := cpt086;
-  fmCalendar.stResources:= cpt087;
-  fmCalendar.stCost:= cpt088;
+  fmCalendar.stResources := cpt087;
+  fmCalendar.stCost := cpt088;
   fmCalendar.ShowModal;
 end;
 
 procedure TfmMain.bnNotesDownClick(Sender: TObject);
-  var sqMove: TSqlite3Dataset;
-    iIDNotes, iSort1, iSort2: Integer;
+var
+  sqMove: TSqlite3Dataset;
+  iIDNotes, iSort1, iSort2: integer;
 begin
   // Move Down note
   if sqNotes.RecNo < sqNotes.RecordCount then
-  try
-    Screen.Cursor := crHourGlass;
-    Application.ProcessMessages;
-    iIDNotes := sqNotes.FieldByName('IDNotes').AsInteger;
-    sqMove := TSqlite3Dataset.Create(Self);
-    sqMove.FileName := sqNotes.FileName;
-    sqMove.TableName := 'Notes';
-    sqMove.PrimaryKey := 'IDNotes';
-    sqMove.AutoIncrementKey := True;
-    sqMove.SQL := sqNotes.SQL;
-    sqMove.Open;
-    sqMove.Locate('IDNotes', iIDNotes, []);
-    iSort1 := sqMove.FieldByName('NotesSort').AsInteger;
-    sqMove.Next;
-    iSort2 := sqMove.FieldByName('NotesSort').AsInteger;
-    sqMove.Edit;
-    sqMove.FieldByName('NotesSort').AsInteger := iSort1;
-    sqMove.Post;
-    sqMove.ApplyUpdates;
-    // Change data of the current record in sqNotes
-    // to make it aware of the change
-    sqNotes.Edit;
-    sqNotes.FieldByName('NotesSort').AsInteger := iSort2;
-    sqNotes.Post;
-    sqNotes.ApplyUpdates;
-    IsTextToLoad := False;
-    sqNotes.RefetchData;
-    sqNotes.Locate('IDNotes', iIDNotes, []);
-    IsTextToLoad := True;
-    sqNotesAfterScroll(nil);
-  finally
-    sqMove.Free;
-    Screen.Cursor := crDefault;
-  end;
+    try
+      Screen.Cursor := crHourGlass;
+      Application.ProcessMessages;
+      iIDNotes := sqNotes.FieldByName('IDNotes').AsInteger;
+      sqMove := TSqlite3Dataset.Create(Self);
+      sqMove.FileName := sqNotes.FileName;
+      sqMove.TableName := 'Notes';
+      sqMove.PrimaryKey := 'IDNotes';
+      sqMove.AutoIncrementKey := True;
+      sqMove.SQL := sqNotes.SQL;
+      sqMove.Open;
+      sqMove.Locate('IDNotes', iIDNotes, []);
+      iSort1 := sqMove.FieldByName('NotesSort').AsInteger;
+      sqMove.Next;
+      iSort2 := sqMove.FieldByName('NotesSort').AsInteger;
+      sqMove.Edit;
+      sqMove.FieldByName('NotesSort').AsInteger := iSort1;
+      sqMove.Post;
+      sqMove.ApplyUpdates;
+      // Change data of the current record in sqNotes
+      // to make it aware of the change
+      sqNotes.Edit;
+      sqNotes.FieldByName('NotesSort').AsInteger := iSort2;
+      sqNotes.Post;
+      sqNotes.ApplyUpdates;
+      IsTextToLoad := False;
+      sqNotes.RefetchData;
+      sqNotes.Locate('IDNotes', iIDNotes, []);
+      IsTextToLoad := True;
+      sqNotesAfterScroll(nil);
+    finally
+      sqMove.Free;
+      Screen.Cursor := crDefault;
+    end;
 end;
 
 procedure TfmMain.bnNotesUpClick(Sender: TObject);
-  var sqMove: TSqlite3Dataset;
-    iIDNotes, iSort1, iSort2: Integer;
+var
+  sqMove: TSqlite3Dataset;
+  iIDNotes, iSort1, iSort2: integer;
 begin
   // Move up note
   if sqNotes.RecNo > 1 then
-  try
-    Screen.Cursor := crHourGlass;
-    Application.ProcessMessages;
-    iIDNotes := sqNotes.FieldByName('IDNotes').AsInteger;
-    sqMove := TSqlite3Dataset.Create(Self);
-    sqMove.FileName := sqNotes.FileName;
-    sqMove.TableName := 'Notes';
-    sqMove.PrimaryKey := 'IDNotes';
-    sqMove.AutoIncrementKey := True;
-    sqMove.SQL := sqNotes.SQL;
-    sqMove.Open;
-    sqMove.Locate('IDNotes', iIDNotes, []);
-    iSort1 := sqMove.FieldByName('NotesSort').AsInteger;
-    sqMove.Prior;
-    iSort2 := sqMove.FieldByName('NotesSort').AsInteger;
-    sqMove.Edit;
-    sqMove.FieldByName('NotesSort').AsInteger := iSort1;
-    sqMove.Post;
-    sqMove.ApplyUpdates;
-    // Change data of the current record in sqNotes
-    // to make it aware of the change
-    sqNotes.Edit;
-    sqNotes.FieldByName('NotesSort').AsInteger := iSort2;
-    sqNotes.Post;
-    IsTextToLoad := False;
-    sqNotes.ApplyUpdates;
-    sqNotes.RefetchData;
-    sqNotes.Locate('IDNotes', iIDNotes, []);
-    IsTextToLoad := True;
-    sqNotesAfterScroll(nil);
-  finally
-    sqMove.Free;
-    Screen.Cursor := crDefault;
-  end;
+    try
+      Screen.Cursor := crHourGlass;
+      Application.ProcessMessages;
+      iIDNotes := sqNotes.FieldByName('IDNotes').AsInteger;
+      sqMove := TSqlite3Dataset.Create(Self);
+      sqMove.FileName := sqNotes.FileName;
+      sqMove.TableName := 'Notes';
+      sqMove.PrimaryKey := 'IDNotes';
+      sqMove.AutoIncrementKey := True;
+      sqMove.SQL := sqNotes.SQL;
+      sqMove.Open;
+      sqMove.Locate('IDNotes', iIDNotes, []);
+      iSort1 := sqMove.FieldByName('NotesSort').AsInteger;
+      sqMove.Prior;
+      iSort2 := sqMove.FieldByName('NotesSort').AsInteger;
+      sqMove.Edit;
+      sqMove.FieldByName('NotesSort').AsInteger := iSort1;
+      sqMove.Post;
+      sqMove.ApplyUpdates;
+      // Change data of the current record in sqNotes
+      // to make it aware of the change
+      sqNotes.Edit;
+      sqNotes.FieldByName('NotesSort').AsInteger := iSort2;
+      sqNotes.Post;
+      IsTextToLoad := False;
+      sqNotes.ApplyUpdates;
+      sqNotes.RefetchData;
+      sqNotes.Locate('IDNotes', iIDNotes, []);
+      IsTextToLoad := True;
+      sqNotesAfterScroll(nil);
+    finally
+      sqMove.Free;
+      Screen.Cursor := crDefault;
+    end;
 end;
 
 procedure TfmMain.bnSubDownClick(Sender: TObject);
-  var sqMove: TSqlite3Dataset;
-  iIDSub, iSort1, iSort2: Integer;
+var
+  sqMove: TSqlite3Dataset;
+  iIDSub, iSort1, iSort2: integer;
 begin
   // Move down subject
   if sqSubjects.RecNo < sqSubjects.RecordCount then
-  try
-    Screen.Cursor := crHourGlass;
-    Application.ProcessMessages;
-    iIDSub := sqSubjects.FieldByName('IDSubjects').AsInteger;
-    sqMove := TSqlite3Dataset.Create(Self);
-    sqMove.FileName := sqSubjects.FileName;
-    sqMove.TableName := 'Subjects';
-    sqMove.PrimaryKey := 'IDSubjects';
-    sqMove.AutoIncrementKey := True;
-    sqMove.SQL := sqSubjects.SQL;
-    sqMove.Open;
-    sqMove.Locate('IDSubjects', iIDSub, []);
-    iSort1 := sqMove.FieldByName('SubjectsSort').AsInteger;
-    sqMove.Next;
-    iSort2 := sqMove.FieldByName('SubjectsSort').AsInteger;
-    sqMove.Edit;
-    sqMove.FieldByName('SubjectsSort').AsInteger := iSort1;
-    sqMove.Post;
-    sqMove.ApplyUpdates;
-    // Change data of the current record in sqSubjects
-    // to make it aware of the change
-    sqSubjects.Edit;
-    sqSubjects.FieldByName('SubjectsSort').AsInteger := iSort2;
-    sqSubjects.Post;
-    sqSubjects.ApplyUpdates;
-    IsTextToLoad := False;
-    sqSubjects.RefetchData;
-    sqSubjects.Locate('IDSubjects', iIDSub, []);
-    IsTextToLoad := True;
-    sqNotesAfterScroll(nil);
-  finally
-    sqMove.Free;
-    Screen.Cursor := crDefault;
-  end;
+    try
+      Screen.Cursor := crHourGlass;
+      Application.ProcessMessages;
+      iIDSub := sqSubjects.FieldByName('IDSubjects').AsInteger;
+      sqMove := TSqlite3Dataset.Create(Self);
+      sqMove.FileName := sqSubjects.FileName;
+      sqMove.TableName := 'Subjects';
+      sqMove.PrimaryKey := 'IDSubjects';
+      sqMove.AutoIncrementKey := True;
+      sqMove.SQL := sqSubjects.SQL;
+      sqMove.Open;
+      sqMove.Locate('IDSubjects', iIDSub, []);
+      iSort1 := sqMove.FieldByName('SubjectsSort').AsInteger;
+      sqMove.Next;
+      iSort2 := sqMove.FieldByName('SubjectsSort').AsInteger;
+      sqMove.Edit;
+      sqMove.FieldByName('SubjectsSort').AsInteger := iSort1;
+      sqMove.Post;
+      sqMove.ApplyUpdates;
+      // Change data of the current record in sqSubjects
+      // to make it aware of the change
+      sqSubjects.Edit;
+      sqSubjects.FieldByName('SubjectsSort').AsInteger := iSort2;
+      sqSubjects.Post;
+      sqSubjects.ApplyUpdates;
+      IsTextToLoad := False;
+      sqSubjects.RefetchData;
+      sqSubjects.Locate('IDSubjects', iIDSub, []);
+      IsTextToLoad := True;
+      sqNotesAfterScroll(nil);
+    finally
+      sqMove.Free;
+      Screen.Cursor := crDefault;
+    end;
 end;
 
 procedure TfmMain.bnSubUpClick(Sender: TObject);
-  var sqMove: TSqlite3Dataset;
-  iIDSub, iSort1, iSort2: Integer;
+var
+  sqMove: TSqlite3Dataset;
+  iIDSub, iSort1, iSort2: integer;
 begin
   // Move up subject
   if sqSubjects.RecNo > 1 then
-  try
-    Screen.Cursor := crHourGlass;
-    Application.ProcessMessages;
-    iIDSub := sqSubjects.FieldByName('IDSubjects').AsInteger;
-    sqMove := TSqlite3Dataset.Create(Self);
-    sqMove.FileName := sqSubjects.FileName;
-    sqMove.TableName := 'Subjects';
-    sqMove.PrimaryKey := 'IDSubjects';
-    sqMove.AutoIncrementKey := True;
-    sqMove.SQL := sqSubjects.SQL;
-    sqMove.Open;
-    sqMove.Locate('IDSubjects', iIDSub, []);
-    iSort1 := sqMove.FieldByName('SubjectsSort').AsInteger;
-    sqMove.Prior;
-    iSort2 := sqMove.FieldByName('SubjectsSort').AsInteger;
-    sqMove.Edit;
-    sqMove.FieldByName('SubjectsSort').AsInteger := iSort1;
-    sqMove.Post;
-    sqMove.ApplyUpdates;
-    // Change data of the current record in sqSubjects
-    // to make it aware of the change
-    sqSubjects.Edit;
-    sqSubjects.FieldByName('SubjectsSort').AsInteger := iSort2;
-    sqSubjects.Post;
-    sqSubjects.ApplyUpdates;
-    IsTextToLoad := False;
-    sqSubjects.RefetchData;
-    sqSubjects.Locate('IDSubjects', iIDSub, []);
-    IsTextToLoad := True;
-    sqNotesAfterScroll(nil);
-  finally
-    sqMove.Free;
-    Screen.Cursor := crDefault;
-  end;
+    try
+      Screen.Cursor := crHourGlass;
+      Application.ProcessMessages;
+      iIDSub := sqSubjects.FieldByName('IDSubjects').AsInteger;
+      sqMove := TSqlite3Dataset.Create(Self);
+      sqMove.FileName := sqSubjects.FileName;
+      sqMove.TableName := 'Subjects';
+      sqMove.PrimaryKey := 'IDSubjects';
+      sqMove.AutoIncrementKey := True;
+      sqMove.SQL := sqSubjects.SQL;
+      sqMove.Open;
+      sqMove.Locate('IDSubjects', iIDSub, []);
+      iSort1 := sqMove.FieldByName('SubjectsSort').AsInteger;
+      sqMove.Prior;
+      iSort2 := sqMove.FieldByName('SubjectsSort').AsInteger;
+      sqMove.Edit;
+      sqMove.FieldByName('SubjectsSort').AsInteger := iSort1;
+      sqMove.Post;
+      sqMove.ApplyUpdates;
+      // Change data of the current record in sqSubjects
+      // to make it aware of the change
+      sqSubjects.Edit;
+      sqSubjects.FieldByName('SubjectsSort').AsInteger := iSort2;
+      sqSubjects.Post;
+      sqSubjects.ApplyUpdates;
+      IsTextToLoad := False;
+      sqSubjects.RefetchData;
+      sqSubjects.Locate('IDSubjects', iIDSub, []);
+      IsTextToLoad := True;
+      sqNotesAfterScroll(nil);
+    finally
+      sqMove.Free;
+      Screen.Cursor := crDefault;
+    end;
 end;
 
 procedure TfmMain.miToolsSyncDoClick(Sender: TObject);
-var IntFile, ExtFile: String;
-  DelRecInt, DelRecExt, ChnRecInt, ChnRecExt: Integer;
-  OldIDSubjects, OldIDNotes: Integer;
+var
+  IntFile, ExtFile: string;
+  DelRecInt, DelRecExt, ChnRecInt, ChnRecExt: integer;
+  OldIDSubjects, OldIDNotes: integer;
 begin
   // Sync the current db
   if SyncFolder = '' then
     Exit;
   if FileExistsUTF8(SyncFolder + DirectorySeparator +
-    ExtractFileName(sqSubjects.FileName)) = False then Exit;
+    ExtractFileName(sqSubjects.FileName)) = False then
+    Exit;
   SaveAllData;
   // No show text only
   DisableShowTextOnly;
   //Make a copy of the current db
-  if FileExistsUTF8(ExtractFileNameWithoutExt(
-    sqSubjects.FileName) + '.syn') then begin
-      DeleteFileUTF8(ExtractFileNameWithoutExt(
-      sqSubjects.FileName) + '.syn')
+  if FileExistsUTF8(ExtractFileNameWithoutExt(sqSubjects.FileName) + '.syn') then
+  begin
+    DeleteFileUTF8(ExtractFileNameWithoutExt(sqSubjects.FileName) + '.syn');
   end;
   CopyFile(sqSubjects.FileName, ExtractFileNameWithoutExt(
     sqSubjects.FileName) + '.syn');
@@ -4111,7 +4594,7 @@ begin
   ChnRecExt := 0;
   Screen.Cursor := crHourGlass;
   Application.ProcessMessages;
-  sbStatusBar.Panels[0].Text := sbr005;
+  sbStatusBar.Panels[0].Text := ' ' + sbr005;
   // Check if the database structure must be upgraded
   try
     MakeTableUpgrade(ExtFile);
@@ -4138,10 +4621,11 @@ begin
       // Sync external tables
       ChnRecExt := SyncUpdateSubjectsNotes(IntFile, ExtFile);
       // Delete backup file
-      if FileExistsUTF8(ExtractFileNameWithoutExt(
-        sqSubjects.FileName) + '.syn') then begin
-          DeleteFileUTF8(ExtractFileNameWithoutExt(
-            sqSubjects.FileName) + '.syn')
+      if FileExistsUTF8(ExtractFileNameWithoutExt(sqSubjects.FileName) +
+        '.syn') then
+      begin
+        DeleteFileUTF8(ExtractFileNameWithoutExt(
+          sqSubjects.FileName) + '.syn');
       end;
       // Update all
       sqSubjects.Close;
@@ -4158,24 +4642,24 @@ begin
       sqNotesAfterScroll(nil);
       dbText.SelStart := 0;
       Screen.Cursor := crDefault;
-      sbStatusBar.Panels[0].Text := sbr006;
+      sbStatusBar.Panels[0].Text := ' ' + sbr006;
       if flNoSyncMsg = False then
       begin
-        if ((DelRecInt > 0) or (DelRecExt > 0) or
-          (ChnRecInt > 0) or (ChnRecExt > 0)) then
+        if ((DelRecInt > 0) or (DelRecExt > 0) or (ChnRecInt > 0) or
+          (ChnRecExt > 0)) then
           MessageDlg(msg010 + LineEnding + msg011 + ' ' +
-            IntToStr(DelRecInt) + LineEnding +
-            msg012 + ' ' + IntToStr(ChnRecInt) + LineEnding + LineEnding +
-            msg013 + LineEnding + msg011 + ' ' + IntToStr(DelRecExt) + LineEnding +
+            IntToStr(DelRecInt) + LineEnding + msg012 +
+            ' ' + IntToStr(ChnRecInt) + LineEnding + LineEnding + msg013 +
+            LineEnding + msg011 + ' ' + IntToStr(DelRecExt) + LineEnding +
             msg012 + ' ' + IntToStr(ChnRecExt),
             mtInformation, [mbOK], 0);
       end;
     except
-      sbStatusBar.Panels[0].Text := sbr007;
+      sbStatusBar.Panels[0].Text := ' ' + sbr007;
       MessageDlg(msg014 + LineEnding + ExtractFileNameWithoutExt(
         sqSubjects.FileName) + '.syn',
-          mtWarning, [mbOK], 0);
-      end;
+        mtWarning, [mbOK], 0);
+    end;
   finally
     sqSubjects.EnableControls;
     Screen.Cursor := crDefault;
@@ -4183,20 +4667,20 @@ begin
 end;
 
 procedure TfmMain.miToolsCompactClick(Sender: TObject);
-  Var IDSub, IDNote: Integer;
+var
+  IDSub, IDNote: integer;
 begin
   // Compact the database
   SaveAllData;
   // No show text only
   DisableShowTextOnly;
-  if MessageDlg(msg015, mtConfirmation,
-    [mbOK, mbCancel], 0) = mrCancel then begin
-     Abort
+  if MessageDlg(msg015, mtConfirmation, [mbOK, mbCancel], 0) = mrCancel then
+  begin
+    Abort;
   end;
-  if FileExistsUTF8(ExtractFileNameWithoutExt(
-    sqSubjects.FileName) + '.bak') then begin
-      DeleteFileUTF8(ExtractFileNameWithoutExt(
-        sqSubjects.FileName) + '.bak')
+  if FileExistsUTF8(ExtractFileNameWithoutExt(sqSubjects.FileName) + '.bak') then
+  begin
+    DeleteFileUTF8(ExtractFileNameWithoutExt(sqSubjects.FileName) + '.bak');
   end;
   CopyFile(sqSubjects.FileName,
     ExtractFileNameWithoutExt(sqSubjects.FileName) + '.bak');
@@ -4224,7 +4708,8 @@ begin
         sqSubjects.Locate('IDSubjects', IDSub, []);
       // sqNotes is opened in the sqSubjects.AfterScroll event,
       // but if there are no subjects the dataset is not opened; so...
-      if sqSubjects.RecordCount = 0 then begin
+      if sqSubjects.RecordCount = 0 then
+      begin
         sqNotes.SQL := 'Select * from Notes where IDNotes = -1';
         sqNotes.Open;
       end;
@@ -4235,47 +4720,48 @@ begin
       // Now load the text
       sqNotesAfterScroll(nil);
       Screen.Cursor := crDefault;
-      MessageDlg(msg016 + LineEnding +
-        ExtractFileNameWithoutExt(sqSubjects.FileName) +
-        '.bak.', mtInformation, [mbOK], 0);
+      MessageDlg(msg016 + LineEnding + ExtractFileNameWithoutExt(
+        sqSubjects.FileName) + '.bak.', mtInformation, [mbOK], 0);
     except
-      MessageDlg(msg017 + LineEnding +
-        ExtractFileNameWithoutExt(sqSubjects.FileName) +
-        '.bak.', mtWarning, [mbOK], 0);
+      MessageDlg(msg017 + LineEnding + ExtractFileNameWithoutExt(
+        sqSubjects.FileName) + '.bak.', mtWarning, [mbOK], 0);
     end;
   finally
-  Screen.Cursor := crDefault;
+    Screen.Cursor := crDefault;
   end;
 end;
 
 procedure TfmMain.miToolsEncryptGPGClick(Sender: TObject);
-  var stRecipient, stPassword: String;
-    Proc: TProcess;
+var
+  Proc: TProcess;
+  stFileNameNoSpace: string;
 begin
   // Encrypt with GPG
   odOpenDialog.Title := cpt026;
   odOpenDialog.Filter := cpt027;
   odOpenDialog.FileName := '';
-  if odOpenDialog.Execute = True then begin
-    if FileExistsUTF8(odOpenDialog.FileName + '.asc') = True then begin
-        MessageDlg(msg063, mtWarning, [mbOK], 0);
-        Abort;
+  if odOpenDialog.Execute = True then
+  begin
+    if FileExistsUTF8(odOpenDialog.FileName + '.pgp') = True then
+    begin
+      MessageDlg(msg063, mtWarning, [mbOK], 0);
+      Abort;
     end;
     InputQuery(msg064, msg065, False, stRecipient);
-    if stRecipient = '' then Abort;
-    InputQuery(msg066, msg067, True, stPassword);
-    if stPassword = '' then Abort;
+    if stRecipient = '' then
+      Abort;
+    stFileNameNoSpace :=
+      StringReplace(odOpenDialog.FileName, ' ', '\ ', [rfReplaceAll]);
     try
       Proc := TProcess.Create(nil);
       Proc.Options := Proc.Options + [poWaitOnExit, poUsePipes];
-      Proc.CommandLine := 'sh -c "echo "' + stPassword + '" | gpg2 --batch ' +
-      ' --passphrase-fd 0 --armor --output ' + odOpenDialog.FileName + '.asc' +
-      ' --recipient ' + stRecipient + ' --encrypt --sign ' +
-      odOpenDialog.FileName + '"';
+      Proc.CommandLine := 'sh -c "gpg2 --batch ' + ' --armor --output ' +
+        stFileNameNoSpace + '.pgp' + ' --recipient ' + stRecipient +
+        ' --encrypt --sign ' + stFileNameNoSpace + '"';
       Proc.Execute;
       Proc.Free;
       Screen.Cursor := crDefault;
-      if FileExistsUTF8(odOpenDialog.FileName + '.asc') = False then
+      if FileExistsUTF8(odOpenDialog.FileName + '.pgp') = False then
         MessageDlg(msg068, mtWarning, [mbOK], 0);
     except
       Screen.Cursor := crDefault;
@@ -4285,34 +4771,35 @@ begin
 end;
 
 procedure TfmMain.miToolsDecryptGPGClick(Sender: TObject);
-  var stPassword: String;
-    Proc: TProcess;
+var
+  Proc: TProcess;
+  stFileNameNoSpace: string;
 begin
   // Decrypt with GPG
   odOpenDialog.Title := cpt042;
   odOpenDialog.Filter := cpt043;
-  odOpenDialog.DefaultExt := '.asc';
+  odOpenDialog.DefaultExt := '.pgp';
   odOpenDialog.FileName := '';
-  if odOpenDialog.Execute = True then begin
-    if FileExistsUTF8(ExtractFileNameWithoutExt(
-      odOpenDialog.FileName)) = True then begin
-        MessageDlg(msg069, mtWarning, [mbOK], 0);
-        Abort;
+  if odOpenDialog.Execute = True then
+  begin
+    if FileExistsUTF8(ExtractFileNameWithoutExt(odOpenDialog.FileName)) = True then
+    begin
+      MessageDlg(msg069, mtWarning, [mbOK], 0);
+      Abort;
     end;
-    InputQuery(msg066, msg067, True, stPassword);
-    if stPassword = '' then Abort;
+    stFileNameNoSpace :=
+      StringReplace(odOpenDialog.FileName, ' ', '\ ', [rfReplaceAll]);
     try
       Proc := TProcess.Create(nil);
       Proc.Options := Proc.Options + [poWaitOnExit, poUsePipes];
-      Proc.CommandLine := 'sh -c "echo "' + stPassword + '" | gpg2 --batch ' +
-      ' --passphrase-fd 0 --armor --output ' +
-      ExtractFileNameWithoutExt(odOpenDialog.FileName) +
-      ' --decrypt ' + odOpenDialog.FileName + '"';
+      Proc.CommandLine := 'sh -c "gpg2 --batch ' + ' --armor --output ' +
+        ExtractFileNameWithoutExt(stFileNameNoSpace) + ' --decrypt ' +
+        stFileNameNoSpace + '"';
       Proc.Execute;
       Proc.Free;
       Screen.Cursor := crDefault;
-      if FileExistsUTF8(ExtractFileNameWithoutExt(
-        odOpenDialog.FileName)) = False then
+      if FileExistsUTF8(ExtractFileNameWithoutExt(odOpenDialog.FileName)) =
+        False then
         MessageDlg(msg070, mtWarning, [mbOK], 0);
     except
       Screen.Cursor := crDefault;
@@ -4321,18 +4808,29 @@ begin
   end;
 end;
 
+procedure TfmMain.miToolsAlarmClick(Sender: TObject);
+begin
+  // Show the alarm form
+  fmSetAlarm.Caption := cpt098;
+  fmSetAlarm.cbAlarm.Caption := cpt099;
+  fmSetAlarm.ShowModal;
+end;
+
 procedure TfmMain.miToolsOptionsClick(Sender: TObject);
 begin
   // Show options
   fmOptions.cbOptionsActivateTray.Checked := flTrayIcon;
   fmOptions.cbOptionsNoMsg.Checked := flNoSyncMsg;
   fmOptions.cbOptionsNoChar.Checked := flNoCharCount;
+  fmOptions.cbOptionsNoAutosave.Checked := flNoAutosave;
+  fmOptions.edOptParSpace.Text := IntToStr(ParagraphSpace);
+  fmOptions.edOptLineSpace.Text := IntToStr(LineSpace);
   if flAutosync = True then
     fmOptions.cbOptionsAutosync.Checked := True;
   fmOptions.cbOptionsOpenLastFile.Checked := flOpenLastFile;
   fmOptions.tbOptionsFormTrans.Position := TranspForm;
-  fmOptions.lbOptionsFont.Caption := cpt044 + ' ' + DefFontName +
-    ', ' + IntToStr(DefFontSize) + ' ' + cpt045;
+  fmOptions.lbOptionsFont.Caption :=
+    cpt044 + ' ' + DefFontName + ', ' + IntToStr(DefFontSize) + ' ' + cpt045;
   fmOptions.bnOptionsFont.Caption := cpt051;
   fmOptions.lbOptionsSyncDir.Caption := cpt046 + ' ' + SyncFolder;
   fmOptions.bnOptionsSyncDir.Caption := cpt052;
@@ -4355,6 +4853,9 @@ begin
   fmOptions.lbOptionDef1.Caption := cpt063;
   fmOptions.lbOptionDef2.Caption := cpt064;
   fmOptions.lbOptionDef3.Caption := cpt065;
+  fmOptions.cbOptionsNoAutosave.Caption := cpt095;
+  fmOptions.lbOptionsLine.Caption := cpt096;
+  fmOptions.lbOptionsPar.Caption := cpt097;
   fmOptions.Caption := cpt083;
   fmOptions.ShowModal;
 end;
@@ -4367,24 +4868,25 @@ begin
   odOpenDialog.Filter := cpt029;
   odOpenDialog.DefaultExt := '.lng';
   odOpenDialog.FileName := '';
-  if odOpenDialog.Execute = True then begin
+  if odOpenDialog.Execute = True then
+  begin
     CopyFile(odOpenDialog.FileName,
-      GetEnvironmentVariable('HOME') + '/.config' +
-        DirectorySeparator + 'mynotex' +
-        DirectorySeparator + 'translation-' + VersMyNt);
+      GetEnvironmentVariable('HOME') + '/.config' + DirectorySeparator +
+      'mynotex' + DirectorySeparator + 'translation-' + VersMyNt);
     // Load and activate translation
     Translation;
     // Update status bar
-      if sqNotes.Active = False then
-        sbStatusBar.Panels[0].Text := sbr008
-      else if sqNotes.RecordCount = 0 then
-        sbStatusBar.Panels[0].Text := sbr002
-      else
-        sbStatusBar.Panels[0].Text := sbr003 + ' ' + IntToStr(sqNotes.RecNo) +
-          ' ' + sbr004 + ' ' + IntToStr(sqNotes.RecordCount) + ' - ' + sbr009 + ' ' +
-          FormatDateTime(FDate.LongDateFormat,
-          sqNotes.FieldByName('NotesDTMod').AsDateTime) + ' ' + sbr010 + ' ' +
-          FormatDateTime('hh:nn', sqNotes.FieldByName('NotesDTMod').AsDateTime);
+    if sqNotes.Active = False then
+      sbStatusBar.Panels[0].Text := ' ' + sbr008
+    else if sqNotes.RecordCount = 0 then
+      sbStatusBar.Panels[0].Text := ' ' + sbr002
+    else
+      sbStatusBar.Panels[0].Text :=
+        ' ' + sbr003 + ' ' + IntToStr(sqNotes.RecNo) + ' ' + sbr004 +
+        ' ' + IntToStr(sqNotes.RecordCount) + ' - ' + sbr009 + ' ' +
+        FormatDateTime(FDate.LongDateFormat,
+        sqNotes.FieldByName('NotesDTMod').AsDateTime) + ' ' + sbr010 +
+        ' ' + FormatDateTime('hh:nn', sqNotes.FieldByName('NotesDTMod').AsDateTime);
   end;
 end;
 
@@ -4394,7 +4896,7 @@ begin
   // e.g. manual-mynotex-it.pdf
   if FileExists(InstallDir + 'manual-mynotex-' +
     LowerCase(Copy(GetEnvironmentVariable('LANG'), 1, 2) + '.pdf')) then
-      OpenDocument(InstallDir + 'manual-mynotex-' +
+    OpenDocument(InstallDir + 'manual-mynotex-' +
       LowerCase(Copy(GetEnvironmentVariable('LANG'), 1, 2) + '.pdf'))
   else
     // Show the official English manual
@@ -4413,14 +4915,16 @@ end;
 procedure TfmMain.tiTrayIconClick(Sender: TObject);
 begin
   // Tray icon management
-  if fmMain.WindowState = wsMinimized then begin
+  if fmMain.WindowState = wsMinimized then
+  begin
     fmMain.Show;
     if FmMaximized = True then
       fmMain.WindowState := wsMaximized
     else
       fmMain.WindowState := wsNormal;
   end
-  else begin
+  else
+  begin
     fmMain.WindowState := wsMinimized;
   end;
 end;
@@ -4429,20 +4933,22 @@ end;
 // ************************* RICHMEMO PROCEDURES *******************************
 // *****************************************************************************
 
-function TfmMain.SaveRichMemo(FromIdx, ToIdx: Integer;
-    SavePictures: Boolean): WideString;
-  var FpNew, FpOld: TFontParams;
-  i: Integer;
+function TfmMain.SaveRichMemo(FromIdx, ToIdx: integer;
+  SavePictures: boolean): WideString;
+var
+  FpNew, FpOld: TFontParams;
+  i: integer;
   StText, StOrig: WideString;
-  flColBack: Boolean = False;
-  flAlign: Boolean = False;
-  stAlign: String = '';
-  flIndented: Boolean = False;
+  flColBack: boolean = False;
+  flAlign: boolean = False;
+  stAlign: string = '';
+  flIndented: boolean = False;
   slPosImg: TStringList;
-  AttDir: String;
+  AttDir: string;
 begin
   // Create text with HTML tags from RichMemo content
-  if dbText.Text = '' then begin
+  if dbText.Text = '' then
+  begin
     Result := '';
     Exit;
   end;
@@ -4458,7 +4964,8 @@ begin
   StOrig := dbText.Text;
   // Save images
   i := -1;
-  if SavePictures = True then begin
+  if SavePictures = True then
+  begin
     AttDir := ExtractFileNameWithoutExt(sqSubjects.FileName);
     if DirectoryExistsUTF8(AttDir) = False then
       CreateDirUTF8(AttDir);
@@ -4466,14 +4973,15 @@ begin
       // slPosImg is created in the TRichMemo component code,
       // in the GetImagePosInText event
       slPosImg := dbText.GetImagePosInText;
-      if slPosImg.Count > 0 then begin
-        for i := 0 to slPosImg.Count - 1 do begin
+      if slPosImg.Count > 0 then
+      begin
+        for i := 0 to slPosImg.Count - 1 do
+        begin
           dbText.SaveImageToFile(StrToInt(slPosImg[i]) - 1,
-            AttDir + DirectorySeparator +
-            sqNotes.FieldByName('NotesUID').AsString +
-            '-img' + FormatFloat('0000', i) + '.jpeg');
-          StOrig := UTF8Copy(StOrig, 1, StrToInt(slPosImg[i]) - 1) + #2 +
-            UTF8Copy(StOrig, StrToInt(slPosImg[i]), UTF8Length(StOrig));
+            AttDir + DirectorySeparator + sqNotes.FieldByName(
+            'NotesUID').AsString + '-img' + FormatFloat('0000', i) + '.jpeg');
+          StOrig := UTF8Copy(StOrig, 1, StrToInt(slPosImg[i]) - 1) +
+            #2 + UTF8Copy(StOrig, StrToInt(slPosImg[i]), UTF8Length(StOrig));
           Inc(ToIdx);
         end;
       end;
@@ -4482,27 +4990,31 @@ begin
     end;
     // Delete unused images
     while FileExistsUTF8(AttDir + DirectorySeparator +
-      sqNotes.FieldByName('NotesUID').AsString +
-        '-img' + FormatFloat('0000', i + 1) + '.jpeg') = True do try
-          DeleteFileUTF8(AttDir + DirectorySeparator +
-            sqNotes.FieldByName('NotesUID').AsString +
-            '-img' + FormatFloat('0000', i + 1) + '.jpeg');
-          Inc(i);
-    except
-      MessageDlg(msg035, mtWarning, [mbOK], 0);
-    end;
+        sqNotes.FieldByName('NotesUID').AsString + '-img' +
+        FormatFloat('0000', i + 1) + '.jpeg') = True do
+      try
+        DeleteFileUTF8(AttDir + DirectorySeparator +
+          sqNotes.FieldByName('NotesUID').AsString + '-img' +
+          FormatFloat('0000', i + 1) + '.jpeg');
+        Inc(i);
+      except
+        MessageDlg(msg035, mtWarning, [mbOK], 0);
+      end;
     if fmMain.IsDirectoryEmpty(AttDir) = True then
       DeleteDirectory(AttDir, False);
   end
-  else begin
+  else
+  begin
     try
       // slPosImg is created in the TRichMemo component code,
       // in the GetImagePosInText event
       slPosImg := dbText.GetImagePosInText;
-      if slPosImg.Count > 0 then begin
-        for i := 0 to slPosImg.Count - 1 do begin
-          StOrig := UTF8Copy(StOrig, 1, StrToInt(slPosImg[i]) - 1) + #2 +
-            UTF8Copy(StOrig, StrToInt(slPosImg[i]), UTF8Length(StOrig));
+      if slPosImg.Count > 0 then
+      begin
+        for i := 0 to slPosImg.Count - 1 do
+        begin
+          StOrig := UTF8Copy(StOrig, 1, StrToInt(slPosImg[i]) - 1) +
+            #2 + UTF8Copy(StOrig, StrToInt(slPosImg[i]), UTF8Length(StOrig));
         end;
       end;
     finally
@@ -4514,30 +5026,32 @@ begin
   StOrig := StringReplace(StOrig, '>', #6, [rfReplaceAll]);
   StText := '';
   try
-    for i := FromIdx to ToIdx do begin
+    for i := FromIdx to ToIdx do
+    begin
       dbText.GetTextAttributes(i, FpNew);
-      if AreFontParamsEqual(FpNew, FpOld) = False then begin
+      if AreFontParamsEqual(FpNew, FpOld) = False then
+      begin
         // See notes on AreFontParamsEqual for following code
         if ((FpNew.Size < 2) or (FpNew.Size > 128)) then
           FpNew.Size := DefFontSize;
-        if ((FpNew.Color <> FpOld.Color) or
-          (FpNew.Size <> FpOld.Size) or
-          (FpNew.Name <> FpOld.Name)) then begin
-          StText := StText + '</font><font' +
-            ' color="#' + IntToHex(Red(FpNew.Color), 2) +
-            IntToHex(Green(FpNew.Color), 2) +
+        if ((FpNew.Color <> FpOld.Color) or (FpNew.Size <> FpOld.Size) or
+          (FpNew.Name <> FpOld.Name)) then
+        begin
+          StText := StText + '</font><font' + ' color="#' +
+            IntToHex(Red(FpNew.Color), 2) + IntToHex(Green(FpNew.Color), 2) +
             IntToHex(Blue(FpNew.Color), 2) + '"' +
             // Converted from 1 to 7 on html export
             ' size="' + IntToStr(FpNew.Size - ZoomFontSize) + '"' +
             ' face="' + FpNew.Name + '">';
         end;
-        if FpNew.BackColor <> FpOld.BackColor then begin
+        if FpNew.BackColor <> FpOld.BackColor then
+        begin
           if flColBack = True then
             StText := StText + '</span>';
-          if FpNew.BackColor <> clWhite then begin
-            StText := StText + '<span style=' +
-              '"background: #' + IntToHex(Red(FpNew.BackColor), 2) +
-              IntToHex(Green(FpNew.BackColor), 2) +
+          if FpNew.BackColor <> clWhite then
+          begin
+            StText := StText + '<span style=' + '"background: #' +
+              IntToHex(Red(FpNew.BackColor), 2) + IntToHex(Green(FpNew.BackColor), 2) +
               IntToHex(Blue(FpNew.BackColor), 2) + '">';
             flColBack := True;
           end
@@ -4547,7 +5061,8 @@ begin
         // Align tag must be inserted at the beginning of each line
         // to be exported in LibreOffice;
         // here we set the flag, below we insert it in the text
-        if FpNew.Alignment <> FpOld.Alignment then begin
+        if FpNew.Alignment <> FpOld.Alignment then
+        begin
           if flAlign = True then
             stAlign := '</p>'
           else
@@ -4564,15 +5079,18 @@ begin
         end;
         // Indented final tag must be inserted at the end of the line;
         // here we set the flag, below we insert it in the text
-        if FpNew.Indented <> FpOld.Indented then begin
-          if FpNew.Indented > DefaultIndent then begin
+        if FpNew.Indented <> FpOld.Indented then
+        begin
+          if FpNew.Indented > DefaultIndent then
+          begin
             StText := StText + '<blockquote>';
             flIndented := False;
           end
           else
             flIndented := True;
         end;
-        if FpNew.Style <> FPOld.Style then begin
+        if FpNew.Style <> FPOld.Style then
+        begin
           if ((fsBold in FpNew.Style) and not (fsBold in FpOld.Style)) then
             StText := StText + '<b>';
           if (not (fsBold in FpNew.Style) and (fsBold in FpOld.Style)) then
@@ -4583,27 +5101,29 @@ begin
             StText := StText + '</i>';
           if ((fsUnderline in FpNew.Style) and not
             (fsUnderline in FpOld.Style)) then
-              StText := StText + '<u>';
+            StText := StText + '<u>';
           if (not (fsUnderline in FpNew.Style) and
             (fsUnderline in FpOld.Style)) then
-              StText := StText + '</u>';
+            StText := StText + '</u>';
           if ((fsStrikeOut in FpNew.Style) and not
             (fsStrikeOut in FpOld.Style)) then
-              StText := StText + '<strike>';
+            StText := StText + '<strike>';
           if (not (fsStrikeOut in FpNew.Style) and
             (fsStrikeOut in FpOld.Style)) then
-              StText := StText + '</strike>';
+            StText := StText + '</strike>';
         end;
         FpOld := FpNew;
       end;
       // Align tag must be inserted at the beginning of each line;
       // here we insert the flag on a CR
-      if ((StOrig[i] = LineEnding) or (i = FromIdx)) then begin
+      if ((StOrig[i] = LineEnding) or (i = FromIdx)) then
+      begin
         StText := StText + stAlign;
       end;
       // Indented final tag must be inserted at the end of the line;
       // here we insert the flag on a CR
-      if ((flIndented = True) and (StOrig[i + 1] = LineEnding)) then begin
+      if ((flIndented = True) and (StOrig[i + 1] = LineEnding)) then
+      begin
         StText := StText + '</blockquote>';
         flIndented := False;
       end;
@@ -4616,8 +5136,8 @@ begin
     StText := StText + '</p>';
     if flIndented = True then
       StText := StText + '</blockquote>';
-    StText := StringReplace(StText, '</blockquote>' + LineEnding + '<blockquote>',
-      LineEnding, [rfReplaceAll]);
+    StText := StringReplace(StText, '</blockquote>' + LineEnding +
+      '<blockquote>', LineEnding, [rfReplaceAll]);
     if UTF8Copy(StText, 1, 7) = '</font>' then
       StText := UTF8Copy(StText, 8, UTF8Length(StText) - 7);
     StText := StText + '</font>';
@@ -4627,11 +5147,12 @@ begin
     // StringReplace(StText, '</blockquote><blockquote>', '', [rfReplaceAll]);
     // Create img tag
     i := 0;
-    while UTF8Pos(#2, StText) > 0 do begin
+    while UTF8Pos(#2, StText) > 0 do
+    begin
       if SavePictures = True then
-        StText := StringReplace(StText, #2,
-          '<IMG SRC="' + sqNotes.FieldByName('NotesUID').AsString +
-          '-img' + FormatFloat('0000', i) + '.jpeg">', [])
+        StText := StringReplace(StText, #2, '<IMG SRC="' +
+          sqNotes.FieldByName('NotesUID').AsString + '-img' +
+          FormatFloat('0000', i) + '.jpeg">', [])
       else
         StText := StringReplace(StText, #2, '', []);
       Inc(i);
@@ -4643,22 +5164,25 @@ begin
 end;
 
 procedure TfmMain.LoadRichMemo;
-  var FpNew: TFontParams;
-  i, n, idxStart, idxLength, idxStartTag, idxEndTag: Integer;
-  StTags, StSubTag: String;
+var
+  FpNew: TFontParams;
+  i, n, idxStart, idxLength, idxStartTag, idxEndTag: integer;
+  StTags, StSubTag: string;
   StData, StOrig, StDest: WideString;
-  IsTag, IsSubTag: Boolean;
-  AttDir: String = '';
+  IsTag, IsSubTag: boolean;
+  AttDir: string = '';
 begin
   // Load HTML text from db and format it in RichMemo
   // Note that RichMemo.text cannot be changed without reset formatting.
-  if IsTextToLoad = False then Exit;
+  if IsTextToLoad = False then
+    Exit;
   Screen.Cursor := crHourGlass;
   Application.ProcessMessages;
   StDest := '';
   if sqNotes.FieldByName('NotesCheckPwd').AsString = '' then
     StData := sqNotes.FieldByName('NotesText').AsWideString
-  else begin
+  else
+  begin
     dcAES.InitStr(edPassword.Text, TDCP_sha1);
     StData := dcAES.DecryptString(sqNotes.FieldByName('NotesText').AsWideString);
   end;
@@ -4666,7 +5190,8 @@ begin
   StOrig := StData;
   IsTag := False;
   dbText.Clear;
-  for i := 1 to Length(StOrig) do begin
+  for i := 1 to Length(StOrig) do
+  begin
     if StOrig[i] = '<' then
       IsTag := True
     else if StOrig[i] = '>' then
@@ -4678,45 +5203,53 @@ begin
   StDest := StringReplace(StDest, #5, '<', [rfReplaceAll]);
   StDest := StringReplace(StDest, #6, '>', [rfReplaceAll]);
   dbText.Text := StDest;
-  if DirectoryExistsUTF8(ExtractFileNameWithoutExt(
-    sqSubjects.FileName)) = True then
-      AttDir := ExtractFileNameWithoutExt(sqSubjects.FileName);
+  if DirectoryExistsUTF8(ExtractFileNameWithoutExt(sqSubjects.FileName)) = True then
+    AttDir := ExtractFileNameWithoutExt(sqSubjects.FileName);
   // Format the text in the RichText
   try
     StTags := '';
     idxStart := 0;
-    for i := 1 to Length(StOrig) do begin
-      if StOrig[i] = '<' then begin
+    for i := 1 to Length(StOrig) do
+    begin
+      if StOrig[i] = '<' then
+      begin
         IsTag := True;
-        StTags := StTags + StOrig[i]
+        StTags := StTags + StOrig[i];
       end
-      else if StOrig[i] = '>' then begin
+      else if StOrig[i] = '>' then
+      begin
         StTags := StTags + StOrig[i]; // Later will be removed
         // Load images
-        if ((AttDir <> '') and (UTF8Pos('<IMG SRC=', StTags) > 0)) then try
-          dbText.LoadImageFromFile(idxStart, AttDir + DirectorySeparator +
-            Copy(StTags, 11, 49), 1);
-          // In the dbText text a character is added as picture
-          Inc(idxStart);
-        except;
-        end
+        if ((AttDir <> '') and (UTF8Pos('<IMG SRC=', StTags) > 0)) then
+          try
+            dbText.LoadImageFromFile(idxStart, AttDir + DirectorySeparator +
+              Copy(StTags, 11, 49), 1);
+            // In the dbText text a character is added as picture
+            Inc(idxStart);
+          except;
+          end
         // Tag <font ...
-        else if UTF8Pos('<font color="', StTags) > 0 then begin
+        else if UTF8Pos('<font color="', StTags) > 0 then
+        begin
           idxLength := 0;
           StSubTag := '';
-          for n := i to Length(StOrig) do begin
-            if StOrig[n] = '<' then begin
+          for n := i to Length(StOrig) do
+          begin
+            if StOrig[n] = '<' then
+            begin
               IsSubTag := True;
               StSubTag := StSubTag + StOrig[n];
             end
-            else if StOrig[n] = '>' then begin
+            else if StOrig[n] = '>' then
+            begin
               StSubTag := StSubTag + StOrig[n];
               if StSubTag = '</font>' then
                 Break;
               IsSubTag := False;
               StSubTag := '';
             end
-            else begin
+            else
+            begin
               if IsSubTag = False then
                 Inc(idxLength)
               else
@@ -4735,8 +5268,8 @@ begin
           while StTags[idxEndTag] <> '"' do
             Inc(idxEndTag);
           idxEndTag := idxEndTag - idxStartTag;
-          FpNew.Size := StrToInt(UTF8Copy(StTags, idxStartTag,
-            idxEndTag)) + ZoomFontSize;
+          FpNew.Size := StrToInt(UTF8Copy(StTags, idxStartTag, idxEndTag)) +
+            ZoomFontSize;
           // Get the name
           idxStartTag := UTF8Pos(' face="', StTags) + 7;
           idxEndTag := idxStartTag;
@@ -4749,22 +5282,27 @@ begin
           dbText.SetTextAttributes(idxStart, idxLength, FpNew);
         end
         // Tag <b>
-        else if UTF8Pos('<b>', StTags) > 0 then begin
+        else if UTF8Pos('<b>', StTags) > 0 then
+        begin
           idxLength := 0;
           StSubTag := '';
-          for n := i to Length(StOrig) do begin
-            if StOrig[n] = '<' then begin
+          for n := i to Length(StOrig) do
+          begin
+            if StOrig[n] = '<' then
+            begin
               IsSubTag := True;
               StSubTag := StSubTag + StOrig[n];
             end
-            else if StOrig[n] = '>' then begin
+            else if StOrig[n] = '>' then
+            begin
               StSubTag := StSubTag + StOrig[n];
               if StSubTag = '</b>' then
                 Break;
               IsSubTag := False;
               StSubTag := '';
             end
-            else begin
+            else
+            begin
               if IsSubTag = False then
                 Inc(idxLength)
               else
@@ -4776,22 +5314,27 @@ begin
           dbText.SetTextAttributes(idxStart, idxLength, FpNew);
         end
         // Tag <i>
-        else if UTF8Pos('<i>', StTags) > 0 then begin
+        else if UTF8Pos('<i>', StTags) > 0 then
+        begin
           idxLength := 0;
           StSubTag := '';
-          for n := i to Length(StOrig) do begin
-            if StOrig[n] = '<' then begin
+          for n := i to Length(StOrig) do
+          begin
+            if StOrig[n] = '<' then
+            begin
               IsSubTag := True;
               StSubTag := StSubTag + StOrig[n];
             end
-            else if StOrig[n] = '>' then begin
+            else if StOrig[n] = '>' then
+            begin
               StSubTag := StSubTag + StOrig[n];
               if StSubTag = '</i>' then
                 Break;
               IsSubTag := False;
               StSubTag := '';
             end
-            else begin
+            else
+            begin
               if IsSubTag = False then
                 Inc(idxLength)
               else
@@ -4803,22 +5346,27 @@ begin
           dbText.SetTextAttributes(idxStart, idxLength, FpNew);
         end
         // Tag <u>
-        else if UTF8Pos('<u>', StTags) > 0 then begin
+        else if UTF8Pos('<u>', StTags) > 0 then
+        begin
           idxLength := 0;
           StSubTag := '';
-          for n := i to Length(StOrig) do begin
-            if StOrig[n] = '<' then begin
+          for n := i to Length(StOrig) do
+          begin
+            if StOrig[n] = '<' then
+            begin
               IsSubTag := True;
               StSubTag := StSubTag + StOrig[n];
             end
-            else if StOrig[n] = '>' then begin
+            else if StOrig[n] = '>' then
+            begin
               StSubTag := StSubTag + StOrig[n];
               if StSubTag = '</u>' then
                 Break;
               IsSubTag := False;
               StSubTag := '';
             end
-            else begin
+            else
+            begin
               if IsSubTag = False then
                 Inc(idxLength)
               else
@@ -4830,22 +5378,27 @@ begin
           dbText.SetTextAttributes(idxStart, idxLength, FpNew);
         end
         // Tag <strike>
-        else if UTF8Pos('<strike>', StTags) > 0 then begin
+        else if UTF8Pos('<strike>', StTags) > 0 then
+        begin
           idxLength := 0;
           StSubTag := '';
-          for n := i to Length(StOrig) do begin
-            if StOrig[n] = '<' then begin
+          for n := i to Length(StOrig) do
+          begin
+            if StOrig[n] = '<' then
+            begin
               IsSubTag := True;
               StSubTag := StSubTag + StOrig[n];
             end
-            else if StOrig[n] = '>' then begin
+            else if StOrig[n] = '>' then
+            begin
               StSubTag := StSubTag + StOrig[n];
               if StSubTag = '</strike>' then
                 Break;
               IsSubTag := False;
               StSubTag := '';
             end
-            else begin
+            else
+            begin
               if IsSubTag = False then
                 Inc(idxLength)
               else
@@ -4857,22 +5410,27 @@ begin
           dbText.SetTextAttributes(idxStart, idxLength, FpNew);
         end
         // Tag <p align=left>
-        else if UTF8Pos('<p align=left>', StTags) > 0 then begin
+        else if UTF8Pos('<p align=left>', StTags) > 0 then
+        begin
           idxLength := 0;
           StSubTag := '';
-          for n := i to Length(StOrig) do begin
-            if StOrig[n] = '<' then begin
+          for n := i to Length(StOrig) do
+          begin
+            if StOrig[n] = '<' then
+            begin
               IsSubTag := True;
               StSubTag := StSubTag + StOrig[n];
             end
-            else if StOrig[n] = '>' then begin
+            else if StOrig[n] = '>' then
+            begin
               StSubTag := StSubTag + StOrig[n];
               if StSubTag = '</p>' then
                 Break;
               IsSubTag := False;
               StSubTag := '';
             end
-            else begin
+            else
+            begin
               if IsSubTag = False then
                 Inc(idxLength)
               else
@@ -4884,22 +5442,27 @@ begin
           dbText.SetTextAttributes(idxStart, idxLength, FpNew);
         end
         // Tag <p align=right>
-        else if UTF8Pos('<p align=right>', StTags) > 0 then begin
+        else if UTF8Pos('<p align=right>', StTags) > 0 then
+        begin
           idxLength := 0;
           StSubTag := '';
-          for n := i to Length(StOrig) do begin
-            if StOrig[n] = '<' then begin
+          for n := i to Length(StOrig) do
+          begin
+            if StOrig[n] = '<' then
+            begin
               IsSubTag := True;
               StSubTag := StSubTag + StOrig[n];
             end
-            else if StOrig[n] = '>' then begin
+            else if StOrig[n] = '>' then
+            begin
               StSubTag := StSubTag + StOrig[n];
               if StSubTag = '</p>' then
                 Break;
               IsSubTag := False;
               StSubTag := '';
             end
-            else begin
+            else
+            begin
               if IsSubTag = False then
                 Inc(idxLength)
               else
@@ -4911,22 +5474,27 @@ begin
           dbText.SetTextAttributes(idxStart, idxLength, FpNew);
         end
         // Tag <p align=center>
-        else if UTF8Pos('<p align=center>', StTags) > 0 then begin
+        else if UTF8Pos('<p align=center>', StTags) > 0 then
+        begin
           idxLength := 0;
           StSubTag := '';
-          for n := i to Length(StOrig) do begin
-            if StOrig[n] = '<' then begin
+          for n := i to Length(StOrig) do
+          begin
+            if StOrig[n] = '<' then
+            begin
               IsSubTag := True;
               StSubTag := StSubTag + StOrig[n];
             end
-            else if StOrig[n] = '>' then begin
+            else if StOrig[n] = '>' then
+            begin
               StSubTag := StSubTag + StOrig[n];
               if StSubTag = '</p>' then
                 Break;
               IsSubTag := False;
               StSubTag := '';
             end
-            else begin
+            else
+            begin
               if IsSubTag = False then
                 Inc(idxLength)
               else
@@ -4938,22 +5506,27 @@ begin
           dbText.SetTextAttributes(idxStart, idxLength, FpNew);
         end
         // Tag <p align=justify>
-        else if UTF8Pos('<p align=justify>', StTags) > 0 then begin
+        else if UTF8Pos('<p align=justify>', StTags) > 0 then
+        begin
           idxLength := 0;
           StSubTag := '';
-          for n := i to Length(StOrig) do begin
-            if StOrig[n] = '<' then begin
+          for n := i to Length(StOrig) do
+          begin
+            if StOrig[n] = '<' then
+            begin
               IsSubTag := True;
               StSubTag := StSubTag + StOrig[n];
             end
-            else if StOrig[n] = '>' then begin
+            else if StOrig[n] = '>' then
+            begin
               StSubTag := StSubTag + StOrig[n];
               if StSubTag = '</p>' then
                 Break;
               IsSubTag := False;
               StSubTag := '';
             end
-            else begin
+            else
+            begin
               if IsSubTag = False then
                 Inc(idxLength)
               else
@@ -4965,22 +5538,27 @@ begin
           dbText.SetTextAttributes(idxStart, idxLength, FpNew);
         end
         // Tag <span style= ...
-        else if UTF8Pos('<span style="', StTags) > 0 then begin
+        else if UTF8Pos('<span style="', StTags) > 0 then
+        begin
           idxLength := 0;
           StSubTag := '';
-          for n := i to Length(StOrig) do begin
-            if StOrig[n] = '<' then begin
+          for n := i to Length(StOrig) do
+          begin
+            if StOrig[n] = '<' then
+            begin
               IsSubTag := True;
               StSubTag := StSubTag + StOrig[n];
             end
-            else if StOrig[n] = '>' then begin
+            else if StOrig[n] = '>' then
+            begin
               StSubTag := StSubTag + StOrig[n];
               if StSubTag = '</span>' then
                 Break;
               IsSubTag := False;
               StSubTag := '';
             end
-            else begin
+            else
+            begin
               if IsSubTag = False then
                 Inc(idxLength)
               else
@@ -4998,22 +5576,27 @@ begin
           dbText.SetTextAttributes(idxStart, idxLength, FpNew);
         end
         // Tag <blockquote>
-        else if UTF8Pos('<blockquote>', StTags) > 0 then begin
+        else if UTF8Pos('<blockquote>', StTags) > 0 then
+        begin
           idxLength := 0;
           StSubTag := '';
-          for n := i to Length(StOrig) do begin
-            if StOrig[n] = '<' then begin
+          for n := i to Length(StOrig) do
+          begin
+            if StOrig[n] = '<' then
+            begin
               IsSubTag := True;
               StSubTag := StSubTag + StOrig[n];
             end
-            else if StOrig[n] = '>' then begin
+            else if StOrig[n] = '>' then
+            begin
               StSubTag := StSubTag + StOrig[n];
               if StSubTag = '</blockquote>' then
                 Break;
               IsSubTag := False;
               StSubTag := '';
             end
-            else begin
+            else
+            begin
               if IsSubTag = False then
                 Inc(idxLength)
               else
@@ -5027,7 +5610,8 @@ begin
         IsTag := False;
         StTags := '';
       end
-      else begin
+      else
+      begin
         if IsTag = True then
           StTags := StTags + StOrig[i]
         else
@@ -5036,6 +5620,13 @@ begin
     end;
   finally
     SetCharCount(flNoCharCount);
+    dbText.SelStart := 0;
+    // Necessary to let the cursor move to char 0
+    Application.ProcessMessages;
+    if UTF8Length(dbText.Text) = 0 then
+      ClearUndoData
+    else
+      StoreUndoData;
     Screen.Cursor := crDefault;
   end;
 end;
@@ -5053,11 +5644,12 @@ begin
 end;
 
 procedure TfmMain.tbCopyHtmlClick(Sender: TObject);
-  var Fid: TClipboardFormat;
+var
+  Fid: TClipboardFormat;
   Strm: TMemoryStream;
   StHTML: string;
-  flNumList: Boolean = False;
-  FnSize, HTMLFnSize, NumList, IniIndent, EndIndent: Integer;
+  flNumList: boolean = False;
+  FnSize, HTMLFnSize, NumList, IniIndent, EndIndent: integer;
 begin
   // Copy to clipboard in html format
   Strm := TMemoryStream.Create;
@@ -5066,10 +5658,10 @@ begin
   StHTML := StringReplace(StHTML, #5, '<', [rfReplaceAll]);
   StHTML := StringReplace(StHTML, #6, '>', [rfReplaceAll]);
   StHTML := '<html><head><meta http-equiv="Content-Type" ' +
-    'content="text/html; charset=UTF-8"></head><body>' +
-    StHTML + ' </body>';
+    'content="text/html; charset=UTF-8"></head><body>' + StHTML + ' </body>';
   // Set font size in html format (from 1 to 7)
-  for FnSize := 6 to 72 do begin
+  for FnSize := 6 to 72 do
+  begin
     if FnSize < 7 then
       HTMLFnSize := 1
     else if FnSize < 10 then
@@ -5084,13 +5676,15 @@ begin
       HTMLFnSize := 6
     else
       HTMLFnSize := 7;
-    StHTML := StringReplace(StHTML, 'size="' + IntToStr(FnSize) + '" face="',
-      'size="' + IntToStr(HTMLFnSize) + '" face="', [rfIgnoreCase, rfReplaceAll]);
+    StHTML := StringReplace(StHTML, 'size="' + IntToStr(FnSize) +
+      '" face="', 'size="' + IntToStr(HTMLFnSize) + '" face="',
+      [rfIgnoreCase, rfReplaceAll]);
   end;
   // Set the tags for lists
   IniIndent := 0;
   EndIndent := 0;
-  while UTF8Pos('<blockquote>', StHTML) > 0 do begin
+  while UTF8Pos('<blockquote>', StHTML) > 0 do
+  begin
     flNumList := False;
     IniIndent := UTF8Pos('<blockquote>', StHTML) + 13;
     if UTF8Pos('</blockquote>', StHTML) - 1 > 0 then
@@ -5098,7 +5692,8 @@ begin
     else
       // If copying an indented text not to the end of it
       EndIndent := UTF8Length(StHTML);
-    while IniIndent < EndIndent do begin
+    while IniIndent < EndIndent do
+    begin
       if ((UTF8Copy(StHTML, IniIndent, 3) = '>1.') or
         (UTF8Copy(StHTML, IniIndent, 3) = '>A.') or
         (UTF8Copy(StHTML, IniIndent, 3) = '>a.')) then
@@ -5107,58 +5702,53 @@ begin
         StHTML[IniIndent] := #3; // A code to be replaced with <il>
       Inc(IniIndent);
     end;
-    StHTML := StringReplace(StHTML, #3,
-      '</li><li>', [rfReplaceAll]);
-    if flNumList = True then begin
+    StHTML := StringReplace(StHTML, #3, '</li><li>', [rfReplaceAll]);
+    if flNumList = True then
+    begin
       StHTML := StringReplace(StHTML, '<blockquote>',
         '<p align=left><ol><li>', []);
-      StHTML := StringReplace(StHTML, '</blockquote>',
-        '</li></ol></p>', []);
+      StHTML := StringReplace(StHTML, '</blockquote>', '</li></ol></p>', []);
     end
-    else begin
+    else
+    begin
       StHTML := StringReplace(StHTML, '<blockquote>',
         '<p align=left><ul><li>', []);
-      StHTML := StringReplace(StHTML, '</blockquote>',
-        '</li></ul></p>', []);
+      StHTML := StringReplace(StHTML, '</blockquote>', '</li></ul></p>', []);
     end;
   end;
   // A list has been processed
-  if IniIndent > 0 then begin
+  if IniIndent > 0 then
+  begin
     // Delete numbers, letters and bullets
-    for NumList := 1 to 100 do begin
-      StHTML := StringReplace(StHTML,
-        IntToStr(NumList) + '.' + #9, '', [rfReplaceAll]);
+    for NumList := 1 to 100 do
+    begin
+      StHTML := StringReplace(StHTML, IntToStr(NumList) + '.' +
+        #9, '', [rfReplaceAll]);
     end;
     for NumList := 65 to 90 do
     begin
       StHTML :=
-        StringReplace(StHTML, Char(NumList) +
-        '.' + #9, '', [rfReplaceAll]);
+        StringReplace(StHTML, char(NumList) + '.' + #9, '', [rfReplaceAll]);
     end;
     for NumList := 97 to 122 do
     begin
       StHTML :=
-        StringReplace(StHTML, Char(NumList) +
-        '.' + #9, '', [rfReplaceAll]);
+        StringReplace(StHTML, char(NumList) + '.' + #9, '', [rfReplaceAll]);
     end;
-    StHTML := StringReplace(StHTML, '•' + #9,
-      '', [rfReplaceAll]);
+    StHTML := StringReplace(StHTML, '•' + #9, '', [rfReplaceAll]);
     // Remove alignment tags within a list to avoid empty rows
     // Alignment is always left
-    StHTML := StringReplace(StHTML, '<li><p align=left>',
-      '<li>', [rfReplaceAll]);
-    StHTML := StringReplace(StHTML, '<li><p align=center>',
-      '<li>', [rfReplaceAll]);
-    StHTML := StringReplace(StHTML, '<li><p align=right>',
-      '<li>', [rfReplaceAll]);
-    StHTML := StringReplace(StHTML, '<li><p align=justify>',
-      '<li>', [rfReplaceAll]);
+    StHTML := StringReplace(StHTML, '<li><p align=left>', '<li>', [rfReplaceAll]);
+    StHTML := StringReplace(StHTML, '<li><p align=center>', '<li>', [rfReplaceAll]);
+    StHTML := StringReplace(StHTML, '<li><p align=right>', '<li>', [rfReplaceAll]);
+    StHTML := StringReplace(StHTML, '<li><p align=justify>', '<li>',
+      [rfReplaceAll]);
     StHTML := StringReplace(StHTML, '<li></p><p align=left>',
       '<li>', [rfReplaceAll]);
     StHTML := StringReplace(StHTML, '<li></p><p align=center>',
       '<li>', [rfReplaceAll]);
-    StHTML := StringReplace(StHTML, '<li></p><p align=right>',
-      '<li>', [rfReplaceAll]);
+    StHTML := StringReplace(StHTML, '<li></p><p align=right>', '<li>',
+      [rfReplaceAll]);
     StHTML := StringReplace(StHTML, '<li></p><p align=justify>',
       '<li>', [rfReplaceAll]);
   end;
@@ -5174,11 +5764,12 @@ begin
 end;
 
 procedure TfmMain.pmTextCopyLatexClick(Sender: TObject);
-  var Fid: TClipboardFormat;
+var
+  Fid: TClipboardFormat;
   Strm: TMemoryStream;
   StLatex, StLatexNoCode: string;
-  NumList, IniIndent, EndIndent, i: Integer;
-  flNumList, IsSubTag: Boolean;
+  NumList, IniIndent, EndIndent, i: integer;
+  flNumList, IsSubTag: boolean;
 begin
   // Copy to clipboard in html format
   Strm := TMemoryStream.Create;
@@ -5193,21 +5784,28 @@ begin
   StLatex := StringReplace(StLatex, '\textit{}', '}\textit{', [rfReplaceAll]);
   StLatex := StringReplace(StLatex, '\textbf{}', '}\textbf{', [rfReplaceAll]);
   StLatex := StringReplace(StLatex, '\underline{}', '}\underline{', [rfReplaceAll]);
-  while UTF8Pos('<p align=', StLatex) > 0 do begin
+  while UTF8Pos('<p align=', StLatex) > 0 do
+  begin
     // Add Latex code only for center and right; left and justified comes as justified
-    if UTF8Copy(StLatex, UTF8Pos('<p align=', StLatex) + 9, 6) = 'center' then begin
-      StLatex := StringReplace(StLatex, '<p align=center>', '\begin{center}', [rfIgnoreCase]);
+    if UTF8Copy(StLatex, UTF8Pos('<p align=', StLatex) + 9, 6) = 'center' then
+    begin
+      StLatex := StringReplace(StLatex, '<p align=center>', '\begin{center}',
+        [rfIgnoreCase]);
       StLatex := StringReplace(StLatex, '</p>', '\end{center}', [rfIgnoreCase]);
     end
-    else if UTF8Copy(StLatex, UTF8Pos('<p align=', StLatex) + 9, 5) = 'right' then begin
-      StLatex := StringReplace(StLatex, '<p align=right>', '\begin{flushright}', [rfIgnoreCase]);
+    else if UTF8Copy(StLatex, UTF8Pos('<p align=', StLatex) + 9, 5) = 'right' then
+    begin
+      StLatex := StringReplace(StLatex, '<p align=right>', '\begin{flushright}',
+        [rfIgnoreCase]);
       StLatex := StringReplace(StLatex, '</p>', '\end{flushright}', [rfIgnoreCase]);
     end
-    else if UTF8Copy(StLatex, UTF8Pos('<p align=', StLatex) + 9, 4) = 'left' then begin
+    else if UTF8Copy(StLatex, UTF8Pos('<p align=', StLatex) + 9, 4) = 'left' then
+    begin
       StLatex := StringReplace(StLatex, '<p align=left>', '', [rfIgnoreCase]);
       StLatex := StringReplace(StLatex, '</p>', '', [rfIgnoreCase]);
     end
-    else if UTF8Copy(StLatex, UTF8Pos('<p align=', StLatex) + 9, 7) = 'justify' then begin
+    else if UTF8Copy(StLatex, UTF8Pos('<p align=', StLatex) + 9, 7) = 'justify' then
+    begin
       StLatex := StringReplace(StLatex, '<p align=justify>', '', [rfIgnoreCase]);
       StLatex := StringReplace(StLatex, '</p>', '', [rfIgnoreCase]);
     end;
@@ -5220,67 +5818,73 @@ begin
   // Set the tags for lists
   IniIndent := 0;
   EndIndent := 0;
-  while UTF8Pos('<blockquote>', StLatex) > 0 do begin
+  while UTF8Pos('<blockquote>', StLatex) > 0 do
+  begin
     flNumList := False;
     IniIndent := UTF8Pos('<blockquote>', StLatex) + 12;
     EndIndent := UTF8Pos('</blockquote>', StLatex) - 1;
     if UTF8Copy(StLatex, IniIndent, 2) = '1.' then
       flNumList := True;
-    while IniIndent < EndIndent do begin
+    while IniIndent < EndIndent do
+    begin
       if StLatex[IniIndent] = LineEnding then
         StLatex[IniIndent] := #3; // A code to be replaced with \items
       Inc(IniIndent);
     end;
-    StLatex := StringReplace(StLatex, #3,
-      '\item ', [rfReplaceAll]);
-    if flNumList = True then begin
-      StLatex := StringReplace(StLatex, '<blockquote>',
-        LineEnding + LineEnding + '\begin{enumerate}' + LineEnding + LineEnding + '\item ', []);
-      StLatex := StringReplace(StLatex, '</blockquote>',
-        LineEnding + LineEnding + '\end{enumerate}' + LineEnding + LineEnding, []);
+    StLatex := StringReplace(StLatex, #3, '\item ', [rfReplaceAll]);
+    if flNumList = True then
+    begin
+      StLatex := StringReplace(StLatex, '<blockquote>', LineEnding +
+        LineEnding + '\begin{enumerate}' + LineEnding + LineEnding + '\item ', []);
+      StLatex := StringReplace(StLatex, '</blockquote>', LineEnding +
+        LineEnding + '\end{enumerate}' + LineEnding + LineEnding, []);
     end
-    else begin
-      StLatex := StringReplace(StLatex, '<blockquote>',
-        LineEnding + LineEnding + '\begin{itemize}'+ LineEnding + LineEnding + '\item ', []);
-      StLatex := StringReplace(StLatex, '</blockquote>',
-        LineEnding + LineEnding + '\end{itemize}' + LineEnding + LineEnding, []);
+    else
+    begin
+      StLatex := StringReplace(StLatex, '<blockquote>', LineEnding +
+        LineEnding + '\begin{itemize}' + LineEnding + LineEnding + '\item ', []);
+      StLatex := StringReplace(StLatex, '</blockquote>', LineEnding +
+        LineEnding + '\end{itemize}' + LineEnding + LineEnding, []);
     end;
   end;
   // A list has been processed
-  if IniIndent > 0 then begin
+  if IniIndent > 0 then
+  begin
     // Delete bullets and numbers
-    for NumList := 1 to 100 do begin
-      StLatex := StringReplace(StLatex,
-        IntToStr(NumList) + '.' + #9, '', [rfReplaceAll]);
-      StLatex := StringReplace(StLatex,
-        IntToStr(NumList) + '. ', '', [rfReplaceAll]);
+    for NumList := 1 to 100 do
+    begin
+      StLatex := StringReplace(StLatex, IntToStr(NumList) +
+        '.' + #9, '', [rfReplaceAll]);
+      StLatex := StringReplace(StLatex, IntToStr(NumList) +
+        '. ', '', [rfReplaceAll]);
     end;
-    StLatex := StringReplace(StLatex, '•' + #9,
-      '', [rfReplaceAll]);
-    StLatex := StringReplace(StLatex, '• ',
-      '', [rfReplaceAll]);
+    StLatex := StringReplace(StLatex, '•' + #9, '', [rfReplaceAll]);
+    StLatex := StringReplace(StLatex, '• ', '', [rfReplaceAll]);
   end;
-  while UTF8Pos('"', stLatex) > 0 do begin
+  while UTF8Pos('"', stLatex) > 0 do
+  begin
     StLatex := StringReplace(StLatex, '"', '“', []);
     StLatex := StringReplace(StLatex, '"', '”', []);
   end;
   StLatex := StringReplace(StLatex, '\item', LineEnding + '\item', [rfReplaceAll]);
   StLatex := StringReplace(StLatex, '\item ' + LineEnding, LineEnding, [rfReplaceAll]);
-  StLatex := StringReplace(StLatex, '\item \begin{itemize}',
-    LineEnding + LineEnding + '\begin{itemize}' + LineEnding + LineEnding, [rfReplaceAll]);
+  StLatex := StringReplace(StLatex, '\item \begin{itemize}', LineEnding +
+    LineEnding + '\begin{itemize}' + LineEnding + LineEnding, [rfReplaceAll]);
   StLatex := StringReplace(StLatex, '\item \begin{enumerate}',
-    LineEnding + LineEnding + '\begin{enumerate}' + LineEnding + LineEnding, [rfReplaceAll]);
-  StLatex := StringReplace(StLatex, '\item \end{itemize}',
-    LineEnding + LineEnding + '\end{itemize}' + LineEnding + LineEnding, [rfReplaceAll]);
-  StLatex := StringReplace(StLatex, '\item \end{enumerate}',
-    LineEnding + LineEnding + '\end{enumerate}' + LineEnding + LineEnding, [rfReplaceAll]);
+    LineEnding + LineEnding + '\begin{enumerate}' + LineEnding +
+    LineEnding, [rfReplaceAll]);
+  StLatex := StringReplace(StLatex, '\item \end{itemize}', LineEnding +
+    LineEnding + '\end{itemize}' + LineEnding + LineEnding, [rfReplaceAll]);
+  StLatex := StringReplace(StLatex, '\item \end{enumerate}', LineEnding +
+    LineEnding + '\end{enumerate}' + LineEnding + LineEnding, [rfReplaceAll]);
   StLatex := StringReplace(StLatex, LineEnding + LineEnding + LineEnding,
     LineEnding + LineEnding, [rfReplaceAll]);
   // Replace todo symbols
-  if ((UTF8Pos('', StLatex) > 0) or (UTF8Pos('', StLatex) > 0)) then begin
+  if ((UTF8Pos('', StLatex) > 0) or (UTF8Pos('', StLatex) > 0)) then
+  begin
     StLatex := StringReplace(StLatex, '', '\Square \hspace{10pt}', [rfReplaceAll]);
     StLatex := StringReplace(StLatex, '', '\CheckedBox \hspace{10pt}', [rfReplaceAll]);
-    StLatex := '% Add \usepackage{wasysym}' + LineEnding + StLatex
+    StLatex := '% Add \usepackage{wasysym}' + LineEnding + StLatex;
   end;
   // do not use UTF8Length here below because it shortens the string
   IsSubTag := False;
@@ -5288,7 +5892,8 @@ begin
   StLatexNoCode := StringReplace(StLatexNoCode, #5, '<', [rfReplaceAll]);
   StLatexNoCode := StringReplace(StLatex, #6, '>', [rfReplaceAll]);
   StLatexNoCode := '';
-  for i := 1 to Length(StLatex) do begin
+  for i := 1 to Length(StLatex) do
+  begin
     if StLatex[i] = '<' then
       IsSubTag := True
     else if StLatex[i] = '>' then
@@ -5296,8 +5901,8 @@ begin
     else if IsSubTag = False then
       StLatexNoCode := StLatexNoCode + StLatex[i];
   end;
-  StLatexNoCode := StringReplace(StLatexNoCode, LineEnding + LineEnding + LineEnding,
-    LineEnding + LineEnding, [rfReplaceAll]);
+  StLatexNoCode := StringReplace(StLatexNoCode, LineEnding + LineEnding +
+    LineEnding, LineEnding + LineEnding, [rfReplaceAll]);
   Strm.WriteBuffer(Pointer(StLatexNoCode)^, Length(StLatexNoCode));
   Strm.Position := 0;
   Clipboard.Clear;
@@ -5309,21 +5914,23 @@ begin
 end;
 
 procedure TfmMain.pmTextSendAsEmailClick(Sender: TObject);
-  var Proc: TProcess;
-  stSub, stBody: String;
+var
+  Proc: TProcess;
+  stSub, stBody: string;
 begin
   // Send email
   // In Thunderbird it works fine, in Evolution the CR are shown (why?)
-  if dbText.Text <> '' then try
-    stSub := StringReplace(dbTitle.Text, '"', '“', [rfReplaceAll]);
-    stBody := StringReplace(dbText.Text, '"', '“', [rfReplaceAll]);
-    Proc := TProcess.Create(nil);
-    Proc.CommandLine := 'xdg-email --utf8 --subject "' + stSub +
-      '" --body "' + stBody + '"';
-    Proc.Execute;
-  finally
-    Proc.Free;
-  end;
+  if dbText.Text <> '' then
+    try
+      stSub := StringReplace(dbTitle.Text, '"', '“', [rfReplaceAll]);
+      stBody := StringReplace(dbText.Text, '"', '“', [rfReplaceAll]);
+      Proc := TProcess.Create(nil);
+      Proc.CommandLine := 'xdg-email --utf8 --subject "' + stSub +
+        '" --body "' + stBody + '"';
+      Proc.Execute;
+    finally
+      Proc.Free;
+    end;
 end;
 
 procedure TfmMain.tbPasteClick(Sender: TObject);
@@ -5335,28 +5942,33 @@ begin
 end;
 
 procedure TfmMain.tbKindFontChangeClick(Sender: TObject);
-  var fp, fpold: TFontParams;
-  i, idxStart, idxLength, idxStep: Integer;
+var
+  fp, fpold: TFontParams;
+  i, idxStart, idxLength, idxStep: integer;
 begin
   // Apply selected font (also for fdFontSelDialogApplyClicked)
   // There is a selection
-  if dbText.SelLength > 0 then begin
+  if dbText.SelLength > 0 then
+  begin
     idxStart := dbText.SelStart;
     idxLength := dbText.SelLength;
   end
   // There is no selection: the formatting is applied to the current word
-  else begin
+  else
+  begin
     idxStart := dbText.GetWordParagraphStartEnd(dbText.SelStart, True, True);
     idxLength := dbText.GetWordParagraphStartEnd(dbText.SelStart,
       True, False) - idxStart;
   end;
   idxStep := idxStart;
   dbText.GetTextAttributes(idxStep, fpold);
-  for i := idxStart to idxStart + idxLength - 1 do begin
+  for i := idxStart to idxStart + idxLength - 1 do
+  begin
     dbText.GetTextAttributes(i, fp);
     // Change of formatting or last character
     if ((AreFontParamsEqual(fpold, fp) = False) or
-      (i = idxStart + idxLength - 1)) then begin
+      (i = idxStart + idxLength - 1)) then
+    begin
       // Last character
       if i = idxStart + idxLength - 1 then
         dbText.GetTextAttributes(i, fp)
@@ -5367,12 +5979,14 @@ begin
       fp.Style := fdFontSelDialog.Font.Style;
       fp.Name := fdFontSelDialog.Font.Name;
       // Last character
-      if i = idxStart + idxLength - 1 then begin
+      if i = idxStart + idxLength - 1 then
+      begin
         fp.Changed := [fiName, fiSize, fiColor];
-        dbText.SetTextAttributes(idxStep, i - idxStep + 1, fp)
+        dbText.SetTextAttributes(idxStep, i - idxStep + 1, fp);
       end
       // Change of formatting
-      else begin
+      else
+      begin
         fp.Changed := [fiName, fiSize, fiColor];
         dbText.SetTextAttributes(idxStep, i - idxStep, fp);
         idxStep := i;
@@ -5405,14 +6019,15 @@ begin
 end;
 
 procedure TfmMain.tbOpenNoteClick(Sender: TObject);
-  var Proc: TProcess;
-  stCommand, SubNotesText, SubActText, stSpcInd: String;
+var
+  Proc: TProcess;
+  stCommand, SubNotesText, SubActText, stSpcInd: string;
   // NewHtml, CharHtml: String;
   myFile: TextFile;
-  FnSize, HTMLFnSize,
-  NumList, IniIndent, EndIndent, SpIndent, PosName, ImgNum, i: Integer;
-  flNumList: Boolean = False;
-  AttReadDir, AttWriteDir: String;
+  FnSize, HTMLFnSize, NumList, IniIndent, EndIndent, SpIndent, PosName,
+  ImgNum, i: integer;
+  flNumList: boolean = False;
+  AttReadDir, AttWriteDir: string;
   myHTMLList: TStringList;
 begin
   // Open text with word processor or print
@@ -5421,13 +6036,12 @@ begin
   SaveAllData;
   try
     // Delete possibile file html
-    if FileExistsUTF8(GetTempDir + DirectorySeparator +
-      'MyNotexFile.html') then try
-      DeleteFileUTF8(GetTempDir + DirectorySeparator +
-      'MyNotexFile.html');
-    except
-      MessageDlg(msg035, mtWarning, [mbOK], 0);
-    end;
+    if FileExistsUTF8(GetTempDir + DirectorySeparator + 'MyNotexFile.html') then
+      try
+        DeleteFileUTF8(GetTempDir + DirectorySeparator + 'MyNotexFile.html');
+      except
+        MessageDlg(msg035, mtWarning, [mbOK], 0);
+      end;
     // Create file html
     AssignFile(myFile, GetTempDir + DirectorySeparator + 'MyNotexFile.html');
     ReWrite(myFile);
@@ -5443,21 +6057,24 @@ begin
     SubNotesText := StringReplace(SubNotesText, '>', '&gt;', [rfReplaceAll]);
     WriteLn(myFile, '<H1>' + SubNotesText + '</H1>');
     // Add date if not for print
-    if Sender <> miNotesPrint then begin
-      WriteLn(myFile, '<H3>' +
-        sqNotes.FieldByName('NotesDate').AsString + '</H3>');
+    if Sender <> miNotesPrint then
+    begin
+      WriteLn(myFile, '<H3>' + sqNotes.FieldByName('NotesDate').AsString +
+        '</H3>');
     end;
     // Add text non encrypted
     if sqNotes.FieldByName('NotesCheckPwd').AsString = '' then
       SubNotesText := sqNotes.FieldByName('NotesText').AsString
     // Add text encrypted: if the password is not set, this function is disabled
-    else begin
+    else
+    begin
       dcAES.InitStr(edPassword.Text, TDCP_sha1);
       SubNotesText :=
         dcAES.DecryptString(sqNotes.FieldByName('NotesText').AsWideString);
     end;
     // Set font size in html format (from 1 to 7)
-    for FnSize := 6 to 72 do begin
+    for FnSize := 6 to 72 do
+    begin
       if FnSize < 7 then
         HTMLFnSize := 1
       else if FnSize < 10 then
@@ -5473,18 +6090,19 @@ begin
       else
         HTMLFnSize := 7;
       SubNotesText := StringReplace(SubNotesText, 'size="' +
-        IntToStr(FnSize) + '" face="',
-        'size="' + IntToStr(HTMLFnSize) + '" face="',
-        [rfIgnoreCase, rfReplaceAll]);
+        IntToStr(FnSize) + '" face="', 'size="' + IntToStr(HTMLFnSize) +
+        '" face="', [rfIgnoreCase, rfReplaceAll]);
     end;
     // Set the tags for lists
     IniIndent := 0;
     EndIndent := 0;
-    while UTF8Pos('<blockquote>', SubNotesText) > 0 do begin
+    while UTF8Pos('<blockquote>', SubNotesText) > 0 do
+    begin
       flNumList := False;
       IniIndent := UTF8Pos('<blockquote>', SubNotesText) + 13;
       EndIndent := UTF8Pos('</blockquote>', SubNotesText) - 1;
-      while IniIndent < EndIndent do begin
+      while IniIndent < EndIndent do
+      begin
         if ((UTF8Copy(SubNotesText, IniIndent, 3) = '>1.') or
           (UTF8Copy(SubNotesText, IniIndent, 3) = '>A.') or
           (UTF8Copy(SubNotesText, IniIndent, 3) = '>a.')) then
@@ -5493,15 +6111,17 @@ begin
           SubNotesText[IniIndent] := #3; // A code to be replaced with <il>
         Inc(IniIndent);
       end;
-      SubNotesText := StringReplace(SubNotesText, #3,
-        '</li><li>', [rfReplaceAll]);
-      if flNumList = True then begin
+      SubNotesText := StringReplace(SubNotesText, #3, '</li><li>',
+        [rfReplaceAll]);
+      if flNumList = True then
+      begin
         SubNotesText := StringReplace(SubNotesText, '<blockquote>',
           '<p align=left><ol><li>', []);
         SubNotesText := StringReplace(SubNotesText, '</blockquote>',
           '</li></ol></p>', []);
       end
-      else begin
+      else
+      begin
         SubNotesText := StringReplace(SubNotesText, '<blockquote>',
           '<p align=left><ul><li>', []);
         SubNotesText := StringReplace(SubNotesText, '</blockquote>',
@@ -5509,26 +6129,27 @@ begin
       end;
     end;
     // A list has been processed
-    if IniIndent > 0 then begin
+    if IniIndent > 0 then
+    begin
       // Delete numbers, letters and bullets
-      for NumList := 1 to 100 do begin
-        SubNotesText := StringReplace(SubNotesText,
-          IntToStr(NumList) + '.' + #9, '', [rfReplaceAll]);
+      for NumList := 1 to 100 do
+      begin
+        SubNotesText := StringReplace(SubNotesText, IntToStr(NumList) +
+          '.' + #9, '', [rfReplaceAll]);
       end;
       for NumList := 65 to 90 do
       begin
         SubNotesText :=
-          StringReplace(SubNotesText, Char(NumList) +
-          '.' + #9, '', [rfReplaceAll]);
+          StringReplace(SubNotesText, char(NumList) + '.' +
+          #9, '', [rfReplaceAll]);
       end;
       for NumList := 97 to 122 do
       begin
         SubNotesText :=
-          StringReplace(SubNotesText, Char(NumList) +
-          '.' + #9, '', [rfReplaceAll]);
+          StringReplace(SubNotesText, char(NumList) + '.' +
+          #9, '', [rfReplaceAll]);
       end;
-      SubNotesText := StringReplace(SubNotesText, '•' + #9,
-        '', [rfReplaceAll]);
+      SubNotesText := StringReplace(SubNotesText, '•' + #9, '', [rfReplaceAll]);
       // Remove alignment tags within a list to avoid empty rows
       // Alignment is always left
       SubNotesText := StringReplace(SubNotesText, '<li><p align=left>',
@@ -5573,18 +6194,18 @@ begin
       SubActText := sqNotes.FieldByName('NotesActivities').AsString;
       WriteLn(myFile, '<tr>');
       // Remove code column of the first row
-      SubActText := UTF8Copy(SubActText, UTF8Pos(#9, SubActText) + 1,
-        UTF8Length(SubActText));
+      SubActText := UTF8Copy(SubActText, UTF8Pos(#9, SubActText) +
+        1, UTF8Length(SubActText));
       PosName := 0;
       stSpcInd := '';
       while UTF8Length(SubActText) > 0 do
       begin
-        if Copy(SubActText, 1, Pos(#9, SubActText) - 1) <> '' then begin
+        if Copy(SubActText, 1, Pos(#9, SubActText) - 1) <> '' then
+        begin
           // The field is activity name, so is indented
           if PosName = 2 then
             WriteLn(myFile, '<td><font size="1">' + stSpcInd +
-              Copy(SubActText, 1, Pos(#9, SubActText) - 1) +
-              '</font></td>')
+              Copy(SubActText, 1, Pos(#9, SubActText) - 1) + '</font></td>')
           // The field is Completion
           else if PosName = 8 then
             WriteLn(myFile, '<td><font size="1">' +
@@ -5601,8 +6222,7 @@ begin
               '</font></td>');
         end
         else
-          WriteLn(myFile, '<td><font size="1">' +
-            '</font></td>');
+          WriteLn(myFile, '<td><font size="1">' + '</font></td>');
         SubActText := UTF8Copy(SubActText, UTF8Pos(#9, SubActText) +
           1, UTF8Length(SubActText));
         Inc(PosName);
@@ -5610,8 +6230,9 @@ begin
         begin
           SubActText := UTF8Copy(SubActText, 2, UTF8Length(SubActText));
           // Get the code and remove code column
-          if CheckNumbers(UTF8Copy(SubActText, 2,
-              UTF8Pos(#9, SubActText) - 2)) = True then begin
+          if CheckNumbers(UTF8Copy(SubActText, 2, UTF8Pos(#9, SubActText) -
+            2)) = True then
+          begin
             SpIndent := StrToInt(UTF8Copy(SubActText, 2,
               UTF8Pos(#9, SubActText) - 2));
             stSpcInd := '';
@@ -5634,34 +6255,38 @@ begin
     // Copy images
     AttReadDir := ExtractFileNameWithoutExt(sqNotes.FileName);
     ImgNum := 0;
-    if DirectoryExistsUTF8(AttReadDir) = True then begin
+    if DirectoryExistsUTF8(AttReadDir) = True then
+    begin
       AttWriteDir := GetTempDir + DirectorySeparator;
       while FileExistsUTF8(AttReadDir + DirectorySeparator +
-        sqNotes.FieldByName('NotesUID').AsString +
-        '-img' + FormatFloat('0000', ImgNum) + '.jpeg') = True do begin
-          CopyFile(AttReadDir + DirectorySeparator +
-            sqNotes.FieldByName('NotesUID').AsString +
-            '-img' + FormatFloat('0000', ImgNum) + '.jpeg',
-            AttWriteDir + DirectorySeparator +
-            sqNotes.FieldByName('NotesUID').AsString +
-            '-img' + FormatFloat('0000', ImgNum) + '.jpeg');
-          Inc(ImgNum);
+          sqNotes.FieldByName('NotesUID').AsString + '-img' +
+          FormatFloat('0000', ImgNum) + '.jpeg') = True do
+      begin
+        CopyFile(AttReadDir + DirectorySeparator +
+          sqNotes.FieldByName('NotesUID').AsString + '-img' +
+          FormatFloat('0000', ImgNum) + '.jpeg',
+          AttWriteDir + DirectorySeparator +
+          sqNotes.FieldByName('NotesUID').AsString + '-img' +
+          FormatFloat('0000', ImgNum) + '.jpeg');
+        Inc(ImgNum);
       end;
     end;
   except
     Screen.Cursor := crDefault;
     MessageDlg(msg020, mtWarning, [mbOK], 0);
   end;
-  if Sender = miNotesPrint then begin
-    if ImgNum > 0 then begin
+  if Sender = miNotesPrint then
+  begin
+    if ImgNum > 0 then
+    begin
       MessageDlg(msg071, mtInformation, [mbOK], 0);
       Abort;
     end;
     try
       try
         myHTMLList := TStringList.Create;
-        myHTMLList.LoadFromFile(GetTempDir +
-          DirectorySeparator + 'MyNotexFile.html');
+        myHTMLList.LoadFromFile(GetTempDir + DirectorySeparator +
+          'MyNotexFile.html');
         ipPrint.SetHtmlFromStr(myHTMLList.Text);
         ipPrint.Print(1, ipPrint.GetPrintPageCount);
       except
@@ -5670,52 +6295,58 @@ begin
     finally
       Screen.Cursor := crDefault;
       myHTMLList.Free
-    end
+    end;
   end
   // Create process and run word processor
-  else try
-    if tbOpenNote.Tag = 0 then
-      stCommand := 'ooffice -writer -n ' +
-        GetTempDir + DirectorySeparator + 'MyNotexFile.html'
-    else if tbOpenNote.Tag = 1 then
-      stCommand := 'libreoffice -writer -n ' +
-        GetTempDir + DirectorySeparator + 'MyNotexFile.html'
-    else if tbOpenNote.Tag = 2 then
-      stCommand := 'xdg-open ' +
-        GetTempDir + DirectorySeparator + 'MyNotexFile.html';
-    Proc := TProcess.Create(nil);
-    Proc.CommandLine := stCommand;
-    Proc.Execute;
-    Proc.Free;
-  except
-    Screen.Cursor := crDefault;
-    MessageDlg(msg032, mtWarning, [mbOK], 0);
-  end;
+  else
+    try
+      if tbOpenNote.Tag = 0 then
+        stCommand := 'ooffice -writer -n ' + GetTempDir +
+          DirectorySeparator + 'MyNotexFile.html'
+      else if tbOpenNote.Tag = 1 then
+        stCommand := 'libreoffice --writer -n ' + GetTempDir +
+          DirectorySeparator + 'MyNotexFile.html'
+      else if tbOpenNote.Tag = 2 then
+        stCommand := 'xdg-open ' + GetTempDir + DirectorySeparator +
+          'MyNotexFile.html';
+      Proc := TProcess.Create(nil);
+      Proc.CommandLine := stCommand;
+      Proc.Execute;
+      Proc.Free;
+    except
+      Screen.Cursor := crDefault;
+      MessageDlg(msg032, mtWarning, [mbOK], 0);
+    end;
   Screen.Cursor := crDefault;
 end;
 
 procedure TfmMain.tbColorFontChangeClick(Sender: TObject);
-  // Works also for tbBackColorFontChange
-  var fp: TFontParams;
-  idxStart, idxLength: Integer;
+// Works also for tbBackColorFontChange
+var
+  fp: TFontParams;
+  idxStart, idxLength: integer;
 begin
   // Change font color for selection
   // There is a selection
-  if dbText.SelLength > 0 then begin
+  if dbText.SelLength > 0 then
+  begin
     idxStart := dbText.SelStart;
     idxLength := dbText.SelLength;
   end
   // There is no selection: the formatting is applied to the current word
-  else begin
+  else
+  begin
     idxStart := dbText.GetWordParagraphStartEnd(dbText.SelStart, True, True);
     idxLength := dbText.GetWordParagraphStartEnd(dbText.SelStart,
       True, False) - idxStart;
   end;
-  if Sender = tbColorFontChange then begin
+  if Sender = tbColorFontChange then
+  begin
     fp.Color := fdColorFormatting.Color;
-    fp.Changed := [fiColor]
+    fp.Changed := [fiColor];
   end
-  else begin
+  else
+  begin
     fp.BackColor := fdBackColorFormatting.Color;
     fp.Changed := [fiBackcolor];
   end;
@@ -5739,8 +6370,9 @@ begin
 end;
 
 procedure TfmMain.SetFontFormat(Sender: TObject);
-  var fp, fpOld: TFontParams;
-  idxStart, idxLength: Integer;
+var
+  fp, fpOld: TFontParams;
+  idxStart, idxLength: integer;
 begin
   // Set character formatting
   // Paragraph selection
@@ -5754,27 +6386,32 @@ begin
     tbAlignFill.Down := True;
   if ((Sender = tbAlignLeft) or (Sender = tbAlignCenter) or
     (Sender = tbAlignRight) or (Sender = tbAlignFill) or
-    (Sender = tbAlignIndent)) then begin
-      idxStart := dbText.GetWordParagraphStartEnd(dbText.SelStart, False, True);
-      idxLength := dbText.GetWordParagraphStartEnd(dbText.SelStart + dbText.SelLength,
-        False, False) - idxStart;
+    (Sender = tbAlignIndent)) then
+  begin
+    idxStart := dbText.GetWordParagraphStartEnd(dbText.SelStart, False, True);
+    idxLength := dbText.GetWordParagraphStartEnd(dbText.SelStart +
+      dbText.SelLength, False, False) - idxStart;
   end
   // Word selection or user selection
-  else begin
+  else
+  begin
     // There is a selection
-    if dbText.SelLength > 0 then begin
+    if dbText.SelLength > 0 then
+    begin
       idxStart := dbText.SelStart;
       idxLength := dbText.SelLength;
     end
     // There is no selection
-    else begin
-    idxStart := dbText.GetWordParagraphStartEnd(dbText.SelStart, True, True);
-    idxLength := dbText.GetWordParagraphStartEnd(dbText.SelStart,
-      True, False) - idxStart;
+    else
+    begin
+      idxStart := dbText.GetWordParagraphStartEnd(dbText.SelStart, True, True);
+      idxLength := dbText.GetWordParagraphStartEnd(dbText.SelStart,
+        True, False) - idxStart;
     end;
   end;
   // Restore default font
-  if ((Sender = tbFontRestore) or (Sender = pmRestoreFont)) then begin
+  if ((Sender = tbFontRestore) or (Sender = pmRestoreFont)) then
+  begin
     fp.Color := clBlack;
     fp.BackColor := clWhite;
     fp.Indented := DefaultIndent;
@@ -5789,9 +6426,11 @@ begin
       fiUnderline, fiIndented, fiStrike, fiBackcolor];
     dbText.SetTextAttributes(idxStart, idxLength, fp);
   end
-  else begin
+  else
+  begin
     // Set bold
-    if Sender = tbFontBold then begin
+    if Sender = tbFontBold then
+    begin
       fp.Changed := [fiBold];
       if tbFontBold.Down = True then
         fp.Style := fp.Style + [fsBold]
@@ -5799,7 +6438,8 @@ begin
         fp.Style := [];
     end
     // Set italic
-    else if Sender = tbFontItalic then begin
+    else if Sender = tbFontItalic then
+    begin
       fp.Changed := [fiItalic];
       if tbFontItalic.Down = True then
         fp.Style := fp.Style + [fsItalic]
@@ -5807,7 +6447,8 @@ begin
         fp.Style := [];
     end
     // Set underline
-    else if Sender = tbFontUnderline then begin
+    else if Sender = tbFontUnderline then
+    begin
       fp.Changed := [fiUnderline];
       if tbFontUnderline.Down = True then
         fp.Style := fp.Style + [fsUnderline]
@@ -5815,7 +6456,8 @@ begin
         fp.Style := [];
     end
     // Set strike
-    else if Sender = tbFontStrike then begin
+    else if Sender = tbFontStrike then
+    begin
       fp.Changed := [fiStrike];
       if tbFontStrike.Down = True then
         fp.Style := fp.Style + [fsStrikeOut]
@@ -5823,7 +6465,8 @@ begin
         fp.Style := [];
     end
     // Set left
-    else if Sender = tbAlignLeft then begin
+    else if Sender = tbAlignLeft then
+    begin
       fp.Changed := [fiAlignment];
       fp.Alignment := [trLeft];
       tbAlignCenter.Down := False;
@@ -5831,7 +6474,8 @@ begin
       tbAlignFill.Down := False;
     end
     // Set center
-    else if Sender = tbAlignCenter then begin
+    else if Sender = tbAlignCenter then
+    begin
       fp.Changed := [fiAlignment];
       fp.Alignment := [trCenter];
       tbAlignLeft.Down := False;
@@ -5839,7 +6483,8 @@ begin
       tbAlignFill.Down := False;
     end
     // Set right
-    else if Sender = tbAlignRight then begin
+    else if Sender = tbAlignRight then
+    begin
       fp.Changed := [fiAlignment];
       fp.Alignment := [trRight];
       tbAlignLeft.Down := False;
@@ -5847,7 +6492,8 @@ begin
       tbAlignFill.Down := False;
     end
     // Set fill
-    else if Sender = tbAlignFill then begin
+    else if Sender = tbAlignFill then
+    begin
       fp.Changed := [fiAlignment];
       fp.Alignment := [trJustified];
       tbAlignLeft.Down := False;
@@ -5855,31 +6501,37 @@ begin
       tbAlignRight.Down := False;
     end
     // Set indent
-    else if Sender = tbAlignIndent then begin
+    else if Sender = tbAlignIndent then
+    begin
       fp.Changed := [fiIndented];
       dbText.GetTextAttributes(dbText.SelStart, fpOld);
-      if fpOld.Indented <= DefaultIndent then begin
+      if fpOld.Indented <= DefaultIndent then
+      begin
         fp.Indented := WidthInden;
         tbAlignIndent.Down := True;
       end
-      else begin
+      else
+      begin
         fp.Indented := DefaultIndent;
         tbAlignIndent.Down := False;
       end;
     end;
-    dbText.SetTextAttributes(idxStart, idxLength, fp)
+    dbText.SetTextAttributes(idxStart, idxLength, fp);
   end;
   EditNotesDataset;
 end;
 
 procedure TfmMain.SetHeadings(Sender: TObject);
-  var SelStart, SelEnd: Integer;
+var
+  SelStart, SelEnd: integer;
   fp: TFontParams;
 begin
   // Set headings
   SelStart := dbText.GetWordParagraphStartEnd(dbText.SelStart, False, True);
-  SelEnd := dbText.GetWordParagraphStartEnd(dbText.SelStart + dbText.SelLength, False, False);
-  if (Sender = pmHeading1) then begin
+  SelEnd := dbText.GetWordParagraphStartEnd(dbText.SelStart +
+    dbText.SelLength, False, False);
+  if (Sender = pmHeading1) then
+  begin
     fp.Size := DefFontSize + ZoomFontSize + 2;
     fp.Style := [fsBold];
     fp.Alignment := [trCenter];
@@ -5887,7 +6539,8 @@ begin
     fp.Changed := [fiSize, fiColor, fiBold, fiItalic, fiUnderline,
       fiStrike, fiAlignment];
   end;
-  if (Sender = pmHeading2) then begin
+  if (Sender = pmHeading2) then
+  begin
     fp.Size := DefFontSize + ZoomFontSize;
     fp.Style := [fsBold];
     fp.Alignment := [trLeft];
@@ -5895,7 +6548,8 @@ begin
     fp.Changed := [fiSize, fiColor, fiBold, fiItalic, fiUnderline,
       fiStrike, fiAlignment];
   end;
-  if (Sender = pmHeading3) then begin
+  if (Sender = pmHeading3) then
+  begin
     fp.Size := DefFontSize + ZoomFontSize;
     fp.Style := [fsItalic];
     fp.Alignment := [trLeft];
@@ -5904,7 +6558,8 @@ begin
     fp.Changed := [fiSize, fiColor, fiBold, fiItalic, fiUnderline,
       fiStrike, fiAlignment];
   end;
-  if (Sender = pmRestoreFont) then begin
+  if (Sender = pmRestoreFont) then
+  begin
     fp.Name := DefFontName;
     fp.Size := DefFontSize + ZoomFontSize;
     fp.Style := [];
@@ -5912,8 +6567,8 @@ begin
     fp.BackColor := clWhite;
     fp.Indented := DefaultIndent;
     fp.Alignment := [trLeft];
-    fp.Changed := [fiName, fiSize, fiColor, fiBold, fiItalic, fiUnderline,
-      fiStrike, fiIndented, fiAlignment, fiBackcolor];
+    fp.Changed := [fiName, fiSize, fiColor, fiBold, fiItalic,
+      fiUnderline, fiStrike, fiIndented, fiAlignment, fiBackcolor];
   end;
   dbText.SetTextAttributes(SelStart, SelEnd - SelStart + 1, fp);
   EditNotesDataset;
@@ -5921,14 +6576,15 @@ begin
 end;
 
 procedure TfmMain.pmBullClick(Sender: TObject);
-  var fp: TFontParams;
-  idxStart, idxLength: Integer;
+var
+  fp: TFontParams;
+  idxStart, idxLength: integer;
 begin
   // Set list with bullets
   // It work for all pmBull menu items
   idxStart := dbText.GetWordParagraphStartEnd(dbText.SelStart, False, True);
-  idxLength := dbText.GetWordParagraphStartEnd(dbText.SelStart,
-    False, False) - idxStart;
+  idxLength := dbText.GetWordParagraphStartEnd(dbText.SelStart, False,
+    False) - idxStart;
   fp.Changed := [fiIndented];
   fp.Indented := WidthInden;
   dbText.SetTextAttributes(idxStart, idxLength, fp);
@@ -5952,7 +6608,8 @@ begin
 end;
 
 procedure TfmMain.ActivateFormatIcons;
-  var fp: TFontParams;
+var
+  fp: TFontParams;
 begin
   // Activate and deactivate format icons
   dbText.GetTextAttributes(dbText.SelStart, fp);
@@ -5977,28 +6634,32 @@ begin
   else
     tbFontStrike.Down := False;
   // Left icon
-  if trLeft in fp.Alignment then begin
+  if trLeft in fp.Alignment then
+  begin
     tbAlignLeft.Down := True;
     tbAlignCenter.Down := False;
     tbAlignRight.Down := False;
     tbAlignFill.Down := False;
   end;
   // Center icon
-  if trCenter in fp.Alignment then begin
+  if trCenter in fp.Alignment then
+  begin
     tbAlignLeft.Down := False;
     tbAlignCenter.Down := True;
     tbAlignRight.Down := False;
     tbAlignFill.Down := False;
   end;
   // Right icon
-  if trRight in fp.Alignment then begin
+  if trRight in fp.Alignment then
+  begin
     tbAlignLeft.Down := False;
     tbAlignCenter.Down := False;
     tbAlignRight.Down := True;
     tbAlignFill.Down := False;
   end;
   // Fill icon
-  if trJustified in fp.Alignment then begin
+  if trJustified in fp.Alignment then
+  begin
     tbAlignLeft.Down := False;
     tbAlignCenter.Down := False;
     tbAlignRight.Down := False;
@@ -6017,16 +6678,36 @@ begin
   dbText.SelectAll;
 end;
 
-function TfmMain.CheckLink: Integer;
-  var SelStart: Integer;
+function TfmMain.CheckLink: integer;
+var
+  SelStart: integer;
+  slPosImg: TStringList;
+  i, iCorr: Integer;
 begin
   // Check if the current word is a link
   Result := -1;
   SelStart := dbText.SelStart;
+  try
+    // Get the possibile picture position in the note
+    // slPosImg is created in the TRichMemo component code,
+    // in the GetImagePosInText event
+    slPosImg := dbText.GetImagePosInText;
+    iCorr := 0;
+    if slPosImg.Count > 0 then
+    begin
+      for i := 0 to slPosImg.Count - 1 do
+      begin
+        if StrToInt(slPosImg[i]) < SelStart then
+          iCorr := iCorr - 1;
+      end;
+      SelStart := SelStart + iCorr;
+    end;
+  finally
+    slPosImg.Free;
+  end;
   while ((UTF8Copy(dbText.Text, SelStart, 1) <> ' ') and
-    (UTF8Copy(dbText.Text, SelStart, 1) <> #9) and
-    (UTF8Copy(dbText.Text, SelStart, 1) <> LineEnding) and
-    (SelStart > 0)) do
+      (UTF8Copy(dbText.Text, SelStart, 1) <> #9) and
+      (UTF8Copy(dbText.Text, SelStart, 1) <> LineEnding) and (SelStart > 0)) do
     SelStart := SelStart - 1;
   if ((UTF8Copy(dbText.Text, SelStart + 1, 1) = '(') or
     (UTF8Copy(dbText.Text, SelStart + 1, 1) = '{') or
@@ -6049,16 +6730,21 @@ begin
     (UTF8Length(dbText.Text) > SelStart + 7)) or
     ((UTF8LowerCase(UTF8Copy(dbText.Text, SelStart + 1, 6)) = 'mnt://') and
     (UTF8Copy(dbText.Text, SelStart + 7, 1) <> LineEnding) and
-    (UTF8Length(dbText.Text) > SelStart + 6))) then
-  Result := SelStart;
+    (UTF8Length(dbText.Text) > SelStart + 6)) or
+    ((UTF8LowerCase(UTF8Copy(dbText.Text, SelStart + 1, 1)) = '#') and
+    (UTF8Copy(dbText.Text, SelStart + 2, 1) <> LineEnding) and
+    (UTF8Length(dbText.Text) > SelStart + 1))) then
+    Result := SelStart;
 end;
 
-procedure TfmMain.MakeLink(SelStart: Integer);
-  var SelEnd: Integer;
+procedure TfmMain.MakeLink(SelStart: integer);
+var
+  SelEnd, i, iCorr: integer;
   fp: TFontParams;
+  slPosImg: TStringList;
 begin
   // Make current word a link
-  if SelStart > - 1 then
+  if SelStart > -1 then
   begin
     SelEnd := dbText.SelStart - 1;
     if ((UTF8Copy(dbText.Text, SelEnd + 1, 1) = '.') or
@@ -6074,9 +6760,51 @@ begin
       SelEnd := SelEnd - 1;
     dbText.GetTextAttributes(SelStart, fp);
     fp.Color := clBlue;
-    fp.Style := [fsUnderline];
+    if UTF8Copy(dbText.Text, SelStart + 1, 1) <> '#' then
+      fp.Style := [fsUnderline];
     fp.Changed := [fiColor, fiUnderline];
+    try
+      // Get the possibile picture position in the note
+      // slPosImg is created in the TRichMemo component code,
+      // in the GetImagePosInText event
+      slPosImg := dbText.GetImagePosInText;
+      iCorr := 0;
+      if slPosImg.Count > 0 then
+      begin
+        for i := 0 to slPosImg.Count - 1 do
+        begin
+          if StrToInt(slPosImg[i]) < SelStart then
+            iCorr := iCorr - 1;
+        end;
+        SelStart := SelStart - iCorr;
+      end;
+    finally
+      slPosImg.Free;
+    end;
     dbText.SetTextAttributes(SelStart, SelEnd - SelStart + 1, fp);
+  end;
+end;
+
+procedure TfmMain.sbStatusBarDrawPanel(StatusBar: TStatusBar;
+  Panel: TStatusPanel; const Rect: TRect);
+begin
+  with sbStatusBar.Canvas do
+  begin
+    case Panel.Index of
+      0, 1:
+      begin
+        Brush.Color := sbStatusBar.Color;
+        Font.Style := [fsBold];
+        if IncMinute(Time, 5) > fmSetAlarm.tpAlarm.Time then
+          Font.Color := clRed
+        else if IncMinute(Time, 15) > fmSetAlarm.tpAlarm.Time then
+          Font.Color := clMaroon
+        else
+          Font.Color := clGreen;
+      end;
+    end;
+    FillRect(Rect);
+    TextRect(Rect, 0, 1, Panel.Text);
   end;
 end;
 
@@ -6089,7 +6817,8 @@ begin
   // Show the password fields
   // If the cursor has moved in a locked record
   // but it is going to move elsewhere, do nothing
-  if IsTextToLoad = False then Exit;
+  if IsTextToLoad = False then
+    Exit;
   DisableShowTextOnly;
   miNotesShowOnlyText.Enabled := False;
   edPassword.Text := '';
@@ -6121,12 +6850,14 @@ begin
   // Check if the password is correct
   dcAES.InitStr(edPassword.Text, TDCP_sha1);
   // The password is correct
-  if dcAES.EncryptString(PwdCheckString) =
-    sqNotes.FieldByName('NotesCheckPwd').AsString then begin
+  if dcAES.EncryptString(PwdCheckString) = sqNotes.FieldByName(
+    'NotesCheckPwd').AsString then
+  begin
     HidePasswordInput;
     LoadRichMemo;
   end
-  else begin
+  else
+  begin
     lbPwdBottom.Visible := True;
     edPassword.SelectAll;
   end;
@@ -6145,13 +6876,14 @@ end;
 // ***************** CONVERT FROM TOMBOY/GNOTE PROCEDURES **********************
 // *****************************************************************************
 
-procedure TfmMain.ConvertFromTomboyGnote(DataPath: String);
-  var myFileListBox: TFileListBox;
-    sqTomGnoteSubjects, sqTomGnoteNotes: TSqlite3Dataset;
-    stText: TStringList;
-    stSubject: String;
-    i, NtAdded, NtModified: Integer;
-    myGUID: TGUID;
+procedure TfmMain.ConvertFromTomboyGnote(DataPath: string);
+var
+  myFileListBox: TFileListBox;
+  sqTomGnoteSubjects, sqTomGnoteNotes: TSqlite3Dataset;
+  stText: TStringList;
+  stSubject: string;
+  i, NtAdded, NtModified: integer;
+  myGUID: TGUID;
 begin
   // Convert data from Tomboy or GNote notes
   try
@@ -6181,11 +6913,12 @@ begin
     NtAdded := 0;
     NtModified := 0;
     // Check each file of Tomboy/Gnote notes
-    for i := 0 to myFileListBox.Items.Count - 1 do begin
+    for i := 0 to myFileListBox.Items.Count - 1 do
+    begin
       // The note is not present in the archive in use
-      if sqTomGnoteNotes.Locate('NotesUID',
-        ExtractFileNameOnly(myFileListBox.Items[i]),
-        [loCaseInsensitive]) = False then begin
+      if sqTomGnoteNotes.Locate('NotesUID', ExtractFileNameOnly(
+        myFileListBox.Items[i]), [loCaseInsensitive]) = False then
+      begin
         stText.LoadFromFile(myFileListBox.Directory + DirectorySeparator +
           myFileListBox.Items[i]);
         stSubject := GetTomboyGnoteSubject(stText.Text);
@@ -6194,7 +6927,8 @@ begin
           stSubject := msg050;
         //The subject is not present in the archive
         if sqTomGnoteSubjects.Locate('SubjectsName', stSubject,
-          [loCaseInsensitive]) = False then begin
+          [loCaseInsensitive]) = False then
+        begin
           sqTomGnoteSubjects.Append;
           sqTomGnoteSubjects.FieldByName('SubjectsName').AsString := stSubject;
           CreateGUID(myGUID);
@@ -6223,13 +6957,14 @@ begin
         NtAdded := NtAdded + 1;
       end
       // The note is present in the archive in use: check if it must be updated
-      else begin
+      else
+      begin
         stText.LoadFromFile(myFileListBox.Directory + DirectorySeparator +
           myFileListBox.Items[i]);
         // Add a second to inner datetime to make sure the comparison is exact
         if sqTomGnoteNotes.FieldByName('NotesDTMod').AsDateTime +
-          StrToTime('00:00:01') <
-          GetTomboyGnoteLastChangeDate(stText.Text) then begin
+        StrToTime('00:00:01') < GetTomboyGnoteLastChangeDate(stText.Text) then
+        begin
           stText.LoadFromFile(myFileListBox.Directory + DirectorySeparator +
             myFileListBox.Items[i]);
           sqTomGnoteNotes.Edit;
@@ -6248,8 +6983,9 @@ begin
     end;
     // Update data
     miFileUpdateClick(nil);
-    sbStatusBar.Panels[0].Text := msg051 + ' ' + IntToStr(NtAdded) + ' - ' +
-      msg052 + ' ' + IntToStr(NtModified) +'.';
+    sbStatusBar.Panels[0].Text :=
+      ' ' + msg051 + ' ' + IntToStr(NtAdded) + ' - ' + msg052 + ' ' +
+      IntToStr(NtModified) + '.';
   finally
     myFileListBox.Free;
     stText.Free;
@@ -6259,90 +6995,85 @@ begin
   end;
 end;
 
-function TfmMain.GetTomboyGnoteCreateDate(stText: String): TDate;
+function TfmMain.GetTomboyGnoteCreateDate(stText: string): TDate;
 begin
-// Get creation date
+  // Get creation date
   Result := 0; //Just to initialize the variable
-  stText := UTF8Copy(stText,
-    UTF8Pos('<create-date>', stText) + 13,
-    UTF8Pos('</create-date>', stText) -
-    UTF8Pos('<create-date>', stText) - 13);
-  if ShortDateFormat = 'dd-mm-yyyy' then
-    stText := UTF8Copy(stText, 9, 2) + '-' +
-      UTF8Copy(stText, 6, 2) + '-' +
-      UTF8Copy(stText, 1, 4)
-  else if ShortDateFormat = 'yyyy-mm-dd' then
-    stText := UTF8Copy(stText, 1, 4) + '-' +
-      UTF8Copy(stText, 6, 2) + '-' +
-      UTF8Copy(stText, 9, 2)
-  else if ShortDateFormat = 'mm-dd-yyyy' then
-    stText := UTF8Copy(stText, 6, 2) + '-' +
-      UTF8Copy(stText, 9, 2) + '-' +
-      UTF8Copy(stText, 1, 4);
-  Result := StrToDate(stText);
+  try
+    stText := UTF8Copy(stText, UTF8Pos('<create-date>', stText) +
+      13, UTF8Pos('</create-date>', stText) - UTF8Pos('<create-date>',
+      stText) - 13);
+    if FDate.ShortDateFormat = 'dd-mm-yyyy' then
+      stText := UTF8Copy(stText, 9, 2) + FDate.DateSeparator +
+        UTF8Copy(stText, 6, 2) + FDate.DateSeparator + UTF8Copy(stText, 1, 4)
+    else if FDate.ShortDateFormat = 'yyyy-mm-dd' then
+      stText := UTF8Copy(stText, 1, 4) + FDate.DateSeparator +
+        UTF8Copy(stText, 6, 2) + FDate.DateSeparator + UTF8Copy(stText, 9, 2)
+    else if FDate.ShortDateFormat = 'mm-dd-yyyy' then
+      stText := UTF8Copy(stText, 6, 2) + FDate.DateSeparator +
+        UTF8Copy(stText, 9, 2) + FDate.DateSeparator + UTF8Copy(stText, 1, 4);
+    Result := StrToDateTime(stText, FDate);
+  except
+    Result := 0;
+  end;
 end;
 
-function TfmMain.GetTomboyGnoteLastChangeDate(stText: String): TDateTime;
+function TfmMain.GetTomboyGnoteLastChangeDate(stText: string): TDateTime;
 begin
   // Get last change date
   Result := 0; //Just to initialize the variable
-  stText := UTF8Copy(stText,
-    UTF8Pos('<last-change-date>', stText) + 18,
-    UTF8Pos('</last-change-date>', stText) -
-    UTF8Pos('<last-change-date>', stText) - 18);
-  if ShortDateFormat = 'dd-mm-yyyy' then
-    stText := UTF8Copy(stText, 9, 2) + '-' +
-      UTF8Copy(stText, 6, 2) + '-' +
-      UTF8Copy(stText, 1, 4) + ' ' +
-      UTF8Copy(stText, 12, 8)
-  else if ShortDateFormat = 'yyyy-mm-dd' then
-    stText := UTF8Copy(stText, 1, 4) + '-' +
-      UTF8Copy(stText, 6, 2) + '-' +
-      UTF8Copy(stText, 9, 2) + ' ' +
-      UTF8Copy(stText, 12, 8)
-  else if ShortDateFormat = 'mm-dd-yyyy' then
-    stText := UTF8Copy(stText, 6, 2) + '-' +
-      UTF8Copy(stText, 9, 2) + '-' +
-      UTF8Copy(stText, 1, 4) + ' ' +
-      UTF8Copy(stText, 12, 8);
-  Result := StrToDateTime(stText);
+  try
+    stText := UTF8Copy(stText, UTF8Pos('<last-change-date>', stText) +
+      18, UTF8Pos('</last-change-date>', stText) -
+      UTF8Pos('<last-change-date>', stText) - 18);
+    if FDate.ShortDateFormat = 'dd-mm-yyyy' then
+      stText := UTF8Copy(stText, 9, 2) + FDate.DateSeparator +
+        UTF8Copy(stText, 6, 2) + FDate.DateSeparator + UTF8Copy(stText, 1, 4)
+    else if FDate.ShortDateFormat = 'yyyy-mm-dd' then
+      stText := UTF8Copy(stText, 1, 4) + FDate.DateSeparator +
+        UTF8Copy(stText, 6, 2) + FDate.DateSeparator + UTF8Copy(stText, 9, 2)
+    else if FDate.ShortDateFormat = 'mm-dd-yyyy' then
+      stText := UTF8Copy(stText, 6, 2) + FDate.DateSeparator +
+        UTF8Copy(stText, 9, 2) + FDate.DateSeparator + UTF8Copy(stText, 1, 4);
+    Result := StrToDateTime(stText, FDate);
+  except
+    Result := 0;
+  end;
 end;
 
-function TfmMain.GetTomboyGnoteTitle(stText: String): String;
+function TfmMain.GetTomboyGnoteTitle(stText: string): string;
 begin
   // Get title
   Result := '';
-  stText := UTF8Copy(stText,
-    UTF8Pos('<title>', stText) + 7,
-    UTF8Pos('</title>', stText) -
-    UTF8Pos('<title>', stText) - 7);
+  stText := UTF8Copy(stText, UTF8Pos('<title>', stText) + 7,
+    UTF8Pos('</title>', stText) - UTF8Pos('<title>', stText) - 7);
   Result := stText;
 end;
 
-function TfmMain.GetTomboyGnoteSubject(stText: String): String;
+function TfmMain.GetTomboyGnoteSubject(stText: string): string;
 begin
   // Get subject
   Result := '';
-  if UTF8Pos('<tag>system:notebook:', stText) > 0 then begin
-    stText := UTF8Copy(stText,
-      UTF8Pos('<tag>system:notebook:', stText) + 21,
-      UTF8Pos('</tag>', stText) -
-      UTF8Pos('<tag>system:notebook:', stText) - 21);
+  if UTF8Pos('<tag>system:notebook:', stText) > 0 then
+  begin
+    stText := UTF8Copy(stText, UTF8Pos('<tag>system:notebook:', stText) +
+      21, UTF8Pos('</tag>', stText) - UTF8Pos('<tag>system:notebook:',
+      stText) - 21);
     Result := stText;
   end;
 end;
 
-function TfmMain.GetTomboyGnoteText(stText: String): String;
-  var StOutput: String;
-  flCopy: Boolean;
-  i: Integer;
+function TfmMain.GetTomboyGnoteText(stText: string): string;
+var
+  StOutput: string;
+  flCopy: boolean;
+  i: integer;
 begin
   // Get text
   Result := '';
-  stText := UTF8Copy(stText,
-    UTF8Pos('<note-content version', stText) + 21,
-    UTF8Pos('</note-content>', stText) -
-    UTF8Pos('<note-content version', stText) - 21);
+  stText := UTF8Copy(stText, UTF8Pos('<note-content version', stText) + 21,
+    UTF8Pos('</note-content>', stText) - UTF8Pos('<note-content version',
+    stText) - 21);
   stText := '<' + stText; // After <note-content version there is the number of version
   // Correct tags
   // To avoid that ‹ and › characters are used in the text
@@ -6356,39 +7087,44 @@ begin
   stText := StringReplace(stText, '</italic>', '‹/i›', [rfReplaceAll, rfIgnoreCase]);
   stText := StringReplace(stText, '<highlight>', '‹u›', [rfReplaceAll, rfIgnoreCase]);
   stText := StringReplace(stText, '</highlight>', '‹/u›', [rfReplaceAll, rfIgnoreCase]);
-  stText := StringReplace(stText, '<strikethrough>', '‹strike›', [rfReplaceAll, rfIgnoreCase]);
-  stText := StringReplace(stText, '</strikethrough>', '‹/strike›', [rfReplaceAll, rfIgnoreCase]);
+  stText := StringReplace(stText, '<strikethrough>', '‹strike›',
+    [rfReplaceAll, rfIgnoreCase]);
+  stText := StringReplace(stText, '</strikethrough>', '‹/strike›',
+    [rfReplaceAll, rfIgnoreCase]);
   stText := StringReplace(stText, '<list-item', '•'#9'<', [rfReplaceAll, rfIgnoreCase]);
-  stText := StringReplace(stText, '<list>', '‹blockquote›', [rfReplaceAll, rfIgnoreCase]);
-  stText := StringReplace(stText, '</list>', '‹/blockquote›', [rfReplaceAll, rfIgnoreCase]);
+  stText := StringReplace(stText, '<list>', '‹blockquote›',
+    [rfReplaceAll, rfIgnoreCase]);
+  stText := StringReplace(stText, '</list>', '‹/blockquote›',
+    [rfReplaceAll, rfIgnoreCase]);
   stText := StringReplace(stText, '<size:small>',
-    '‹/font›‹font color="#000000" size="' + IntToStr(DefFontSize - 2) + '" face="' +
-    DefFontName + '"›', [rfReplaceAll, rfIgnoreCase]);
+    '‹/font›‹font color="#000000" size="' + IntToStr(DefFontSize - 2) +
+    '" face="' + DefFontName + '"›', [rfReplaceAll, rfIgnoreCase]);
   stText := StringReplace(stText, '<size:large>',
-    '‹/font›‹font color="#000000" size="' + IntToStr(DefFontSize + 2) + '" face="' +
-    DefFontName + '"›', [rfReplaceAll, rfIgnoreCase]);
+    '‹/font›‹font color="#000000" size="' + IntToStr(DefFontSize + 2) +
+    '" face="' + DefFontName + '"›', [rfReplaceAll, rfIgnoreCase]);
   stText := StringReplace(stText, '<size:huge>',
-    '‹/font›‹font color="#000000" size="' + IntToStr(DefFontSize + 4) + '" face="' +
-    DefFontName + '"›', [rfReplaceAll, rfIgnoreCase]);
+    '‹/font›‹font color="#000000" size="' + IntToStr(DefFontSize + 4) +
+    '" face="' + DefFontName + '"›', [rfReplaceAll, rfIgnoreCase]);
   stText := StringReplace(stText, '</size:small>',
-    '‹/font›‹font color="#000000" size="' + IntToStr(DefFontSize) + '" face="' +
-    DefFontName + '"›', [rfReplaceAll, rfIgnoreCase]);
+    '‹/font›‹font color="#000000" size="' + IntToStr(DefFontSize) +
+    '" face="' + DefFontName + '"›', [rfReplaceAll, rfIgnoreCase]);
   stText := StringReplace(stText, '</size:large>',
-    '‹/font›‹font color="#000000" size="' + IntToStr(DefFontSize) + '" face="' +
-    DefFontName + '"›', [rfReplaceAll, rfIgnoreCase]);
+    '‹/font›‹font color="#000000" size="' + IntToStr(DefFontSize) +
+    '" face="' + DefFontName + '"›', [rfReplaceAll, rfIgnoreCase]);
   stText := StringReplace(stText, '</size:huge>',
-    '‹/font›‹font color="#000000" size="' + IntToStr(DefFontSize) + '" face="' +
-    DefFontName + '"›', [rfReplaceAll, rfIgnoreCase]);
+    '‹/font›‹font color="#000000" size="' + IntToStr(DefFontSize) +
+    '" face="' + DefFontName + '"›', [rfReplaceAll, rfIgnoreCase]);
   stText := StringReplace(stText, '<link:url>',
-    '‹/font›‹font color="#0000FF" size="' + IntToStr(DefFontSize) + '" face="' +
-    DefFontName + '"›‹u›', [rfReplaceAll, rfIgnoreCase]);
+    '‹/font›‹font color="#0000FF" size="' + IntToStr(DefFontSize) +
+    '" face="' + DefFontName + '"›‹u›', [rfReplaceAll, rfIgnoreCase]);
   stText := StringReplace(stText, '</link:url>',
-    '‹/font›‹/u›‹font color="#000000" size="' + IntToStr(DefFontSize) + '" face="' +
-    DefFontName + '"›', [rfReplaceAll, rfIgnoreCase]);
+    '‹/font›‹/u›‹font color="#000000" size="' + IntToStr(DefFontSize) +
+    '" face="' + DefFontName + '"›', [rfReplaceAll, rfIgnoreCase]);
   // Clear other possible uncorrected HTML tags
   flCopy := True;
   stOutput := '';
-  for i := 1 to Length(stText) do begin
+  for i := 1 to Length(stText) do
+  begin
     if stText[i] = '<' then
       flCopy := False
     else if stText[i] = '>' then
@@ -6419,197 +7155,208 @@ begin
     MessageDlg(E.Message, mtWarning, [mbOK], 0);
 end;
 
-procedure TfmMain.CreateDataTables(DataFileName: String);
-  var mySQL: String;
+procedure TfmMain.CreateDataTables(DataFileName: string);
+var
+  mySQL: string;
 begin
   // Create new archive
   // If file exists, delete it (the Open dialog doesn't work properly)
   // Close tables
   CloseDataTables;
   // Overwriting not allowed; see notes on code below
-  if FileExistsUTF8(DataFileName) = True then begin
+  if FileExistsUTF8(DataFileName) = True then
+  begin
     MessageDlg(msg019, mtWarning, [mbOK], 0);
     Abort;
   end;
   // Create Data Table and indexes
-  with sqToolsTables do try
-    FileName := DataFileName;
-    // Create Subjects Table and indexes
-    mySQL := 'CREATE TABLE Subjects (';
-    mySQL := MySQL + 'IDSubjects INTEGER PRIMARY KEY, ';
-    mySQL := MySQL + 'SubjectsName VARCHAR(200), ';
-    mySQL := MySQL + 'SubjectsComments TEXT, ';
-    mySQL := MySQL + 'SubjectsBackColor VARCHAR(30), ';
-    mySQL := MySQL + 'SubjectsFontColor VARCHAR(30), ';
-    mySQL := MySQL + 'SubjectsSort INTEGER, ';
-    mySQL := MySQL + 'SubjectsUID VARCHAR(37), ';
-    mySQL := MySQL + 'SubjectsDTMod DATETIME);';
-    ExecSQL(MySQL);
-    mySQL := 'CREATE UNIQUE INDEX idxSubjectsIDSubjects ON Subjects (IDSubjects);';
-    ExecSQL(MySQL);
-    mySQL := 'CREATE INDEX idxSubjectsName ON Subjects (SubjectsName);';
-    ExecSQL(MySQL);
-    mySQL := 'CREATE INDEX idxSubjectsSort ON Subjects (SubjectsSort);';
-    ExecSQL(MySQL);
-    mySQL := 'CREATE INDEX idxSubjectsUID ON Subjects (SubjectsUID);';
-    ExecSQL(MySQL);
-    // Create Notes Table and indexes
-    mySQL := 'CREATE TABLE Notes (';
-    mySQL := MySQL + 'IDNotes INTEGER PRIMARY KEY, ';
-    mySQL := MySQL + 'ID_Subjects INTEGER, ';
-    mySQL := MySQL + 'NotesTitle VARCHAR(200), ';
-    mySQL := MySQL + 'NotesDate DATE, ';
-    mySQL := MySQL + 'NotesText TEXT, ';
-    mySQL := MySQL + 'NotesTags VARCHAR(200), ';
-    mySQL := MySQL + 'NotesBackColor VARCHAR(30), ';
-    mySQL := MySQL + 'NotesFontColor VARCHAR(30), ';
-    mySQL := MySQL + 'NotesSort INTEGER, ';
-    mySQL := MySQL + 'NotesAttName TEXT, ';
-    mySQL := MySQL + 'NotesActivities TEXT, ';
-    mySQL := MySQL + 'NotesUID VARCHAR(37), ';
-    mySQL := MySQL + 'NotesDTMod DATETIME, ';
-    mySQL := MySQL + 'NotesDateFormat VARCHAR(3), ';
-    mySQL := MySQL + 'NotesCheckPwd VARCHAR(200)); ';
-    mySQL := MySQL + 'CONSTRAINT fkNotes_Subjects FOREIGN KEY (ID_Subjects) REFERENCES Subjects (IDSubjects));';
-    ExecSQL(MySQL);
-    mySQL := 'CREATE UNIQUE INDEX idxNotesIDNotes ON Notes (IDNotes);';
-    ExecSQL(MySQL);
-    mySQL := 'CREATE INDEX idxNotesID_Subjects ON Notes (ID_Subjects);';
-    ExecSQL(MySQL);
-    mySQL := 'CREATE INDEX idxNotesTitle ON Notes (NotesTitle);';
-    ExecSQL(MySQL);
-    mySQL := 'CREATE INDEX idxNotesSort ON Notes (NotesSort);';
-    ExecSQL(MySQL);
-    mySQL := 'CREATE INDEX idxNotesUID ON Notes (NotesUID);';
-    ExecSQL(MySQL);
-    // Create Deleted record Table and indexes
-    mySQL := 'CREATE TABLE DelRec (';
-    mySQL := MySQL + 'IDDelRec INTEGER PRIMARY KEY, ';
-    mySQL := MySQL + 'DelRecUID VARCHAR(37), ';
-    mySQL := MySQL + 'DelRecDTMod DATETIME); ';
-    ExecSQL(MySQL);
-    mySQL := 'CREATE UNIQUE INDEX idxDelRecIDDelrec ON Delrec (IDDelRec);';
-    ExecSQL(MySQL);
-    mySQL := 'CREATE INDEX idxDelRecUID ON Delrec (DelRecUID);';
-    ExecSQL(MySQL);
-    // Create Tools Table
-    mySQL := 'CREATE TABLE Tools (';
-    mySQL := MySQL + 'IDTools INTEGER PRIMARY KEY, ';
-    mySQL := MySQL + 'IDLastSubject INTEGER, ';
-    mySQL := MySQL + 'IDLastNote INTEGER); ';
-    ExecSQL(MySQL);
-  except
-    MessageDlg(msg020, mtWarning, [mbOK], 0);
-  end;
-end;
-
-procedure TfmMain.MakeTableUpgrade(DataFileName: String);
-  var mySQL: String;
-begin
-  // Update database structure
-  with sqToolsTables do try
-    // Change Notes
-    FileName := DataFileName;
-    TableName := 'Notes';
-    SQL := 'Select * from Notes where IDNotes = -1';
-    Open;
-    // Upgrade to 1.0.6
-    if FieldCount < 8 then begin
-      Close;
-      mySQL := 'ALTER TABLE Subjects ADD SubjectsComments TEXT';
+  with sqToolsTables do
+    try
+      FileName := DataFileName;
+      // Create Subjects Table and indexes
+      mySQL := 'CREATE TABLE Subjects (';
+      mySQL := MySQL + 'IDSubjects INTEGER PRIMARY KEY, ';
+      mySQL := MySQL + 'SubjectsName VARCHAR(200), ';
+      mySQL := MySQL + 'SubjectsComments TEXT, ';
+      mySQL := MySQL + 'SubjectsBackColor VARCHAR(30), ';
+      mySQL := MySQL + 'SubjectsFontColor VARCHAR(30), ';
+      mySQL := MySQL + 'SubjectsSort INTEGER, ';
+      mySQL := MySQL + 'SubjectsUID VARCHAR(37), ';
+      mySQL := MySQL + 'SubjectsDTMod DATETIME);';
       ExecSQL(MySQL);
-      mySQL := 'ALTER TABLE Notes ADD NotesTags VARCHAR(200)';
+      mySQL := 'CREATE UNIQUE INDEX idxSubjectsIDSubjects ON Subjects (IDSubjects);';
       ExecSQL(MySQL);
-      mySQL := 'ALTER TABLE Notes ADD NotesAttName TEXT';
+      mySQL := 'CREATE INDEX idxSubjectsName ON Subjects (SubjectsName);';
       ExecSQL(MySQL);
-      Close;
-      // Error Message is in OpenTable procedure
-    end
-    // Upgrade to 1.1.2
-    else if FieldCount < 10 then begin
-      Close;
-      mySQL := 'ALTER TABLE Notes ADD NotesCheckPwd VARCHAR(200)';
+      mySQL := 'CREATE INDEX idxSubjectsSort ON Subjects (SubjectsSort);';
       ExecSQL(MySQL);
+      mySQL := 'CREATE INDEX idxSubjectsUID ON Subjects (SubjectsUID);';
+      ExecSQL(MySQL);
+      // Create Notes Table and indexes
+      mySQL := 'CREATE TABLE Notes (';
+      mySQL := MySQL + 'IDNotes INTEGER PRIMARY KEY, ';
+      mySQL := MySQL + 'ID_Subjects INTEGER, ';
+      mySQL := MySQL + 'NotesTitle VARCHAR(200), ';
+      mySQL := MySQL + 'NotesDate DATE, ';
+      mySQL := MySQL + 'NotesText TEXT, ';
+      mySQL := MySQL + 'NotesTags VARCHAR(200), ';
+      mySQL := MySQL + 'NotesBackColor VARCHAR(30), ';
+      mySQL := MySQL + 'NotesFontColor VARCHAR(30), ';
+      mySQL := MySQL + 'NotesSort INTEGER, ';
+      mySQL := MySQL + 'NotesAttName TEXT, ';
+      mySQL := MySQL + 'NotesActivities TEXT, ';
+      mySQL := MySQL + 'NotesUID VARCHAR(37), ';
+      mySQL := MySQL + 'NotesDTMod DATETIME, ';
+      mySQL := MySQL + 'NotesDateFormat VARCHAR(3), ';
+      mySQL := MySQL + 'NotesCheckPwd VARCHAR(200)); ';
+      mySQL := MySQL +
+        'CONSTRAINT fkNotes_Subjects FOREIGN KEY (ID_Subjects) REFERENCES Subjects (IDSubjects));';
+      ExecSQL(MySQL);
+      mySQL := 'CREATE UNIQUE INDEX idxNotesIDNotes ON Notes (IDNotes);';
+      ExecSQL(MySQL);
+      mySQL := 'CREATE INDEX idxNotesID_Subjects ON Notes (ID_Subjects);';
+      ExecSQL(MySQL);
+      mySQL := 'CREATE INDEX idxNotesTitle ON Notes (NotesTitle);';
+      ExecSQL(MySQL);
+      mySQL := 'CREATE INDEX idxNotesSort ON Notes (NotesSort);';
+      ExecSQL(MySQL);
+      mySQL := 'CREATE INDEX idxNotesUID ON Notes (NotesUID);';
+      ExecSQL(MySQL);
+      // Create Deleted record Table and indexes
+      mySQL := 'CREATE TABLE DelRec (';
+      mySQL := MySQL + 'IDDelRec INTEGER PRIMARY KEY, ';
+      mySQL := MySQL + 'DelRecUID VARCHAR(37), ';
+      mySQL := MySQL + 'DelRecDTMod DATETIME); ';
+      ExecSQL(MySQL);
+      mySQL := 'CREATE UNIQUE INDEX idxDelRecIDDelrec ON Delrec (IDDelRec);';
+      ExecSQL(MySQL);
+      mySQL := 'CREATE INDEX idxDelRecUID ON Delrec (DelRecUID);';
+      ExecSQL(MySQL);
+      // Create Tools Table
       mySQL := 'CREATE TABLE Tools (';
       mySQL := MySQL + 'IDTools INTEGER PRIMARY KEY, ';
       mySQL := MySQL + 'IDLastSubject INTEGER, ';
       mySQL := MySQL + 'IDLastNote INTEGER); ';
       ExecSQL(MySQL);
-      Close;
-      // Error Message is in OpenTable procedure
-    end
-    // Upgrade to 1.3.0
-    else if FieldCount < 11 then begin
-      Close;
-      mySQL := 'ALTER TABLE Notes ADD NotesActivities TEXT';
-      ExecSQL(MySQL);
-      mySQL := 'ALTER TABLE Notes ADD NotesDateFormat VARCHAR(3)';
-      ExecSQL(MySQL);
-      Close;
-      // Error Message is in OpenTable procedure
+    except
+      MessageDlg(msg020, mtWarning, [mbOK], 0);
     end;
-    Close;
-    // Change Subjects
-    FileName := DataFileName;
-    TableName := 'Subjects';
-    SQL := 'Select * from Subjects where IDSubjects = -1';
-    Open;
-    // Upgrade to 1.3.1
-    if FieldCount < 6 then begin
-      Close;
-      mySQL := 'ALTER TABLE Subjects ADD SubjectsBackColor VARCHAR(30)';
-      ExecSQL(MySQL);
-      mySQL := 'ALTER TABLE Subjects ADD SubjectsFontColor VARCHAR(30)';
-      ExecSQL(MySQL);
-      mySQL := 'ALTER TABLE Subjects ADD SubjectsSort INTEGER';
-      ExecSQL(MySQL);
-      mySQL := 'CREATE INDEX idxSubjectsSort ON Subjects (SubjectsSort);';
-      ExecSQL(MySQL);
-      mySQL := 'ALTER TABLE Notes ADD NotesBackColor VARCHAR(30)';
-      ExecSQL(MySQL);
-      mySQL := 'ALTER TABLE Notes ADD NotesFontColor VARCHAR(30)';
-      ExecSQL(MySQL);
-      mySQL := 'ALTER TABLE Notes ADD NotesSort INTEGER';
-      ExecSQL(MySQL);
-      mySQL := 'CREATE INDEX idxNotesSort ON Notes (NotesSort);';
-      ExecSQL(MySQL);
-      Close;
-      SQL := 'Select * from Subjects';
-      PrimaryKey := 'IDSubjects';
-      Open;
-      while not sqToolsTables.EOF do
-      begin
-        sqToolsTables.Edit;
-        sqToolsTables.FieldByName('SubjectsSort').AsInteger :=
-          sqToolsTables.FieldByName('IDSubjects').AsInteger;
-        sqToolsTables.Post;
-        sqToolsTables.Next;
-      end;
-      sqToolsTables.ApplyUpdates;
-      Close;
-      TableName := 'Notes';
-      SQL := 'Select * from Notes';
-      PrimaryKey := 'IDNotes';
-      Open;
-      while not sqToolsTables.EOF do
-      begin
-        sqToolsTables.Edit;
-        sqToolsTables.FieldByName('NotesSort').AsInteger :=
-          sqToolsTables.FieldByName('IDNotes').AsInteger;
-        sqToolsTables.Post;
-        sqToolsTables.Next;
-      end;
-      sqToolsTables.ApplyUpdates;
-      // Error Message is in OpenTable procedure
-    end
-  finally
-    PrimaryKey := '';
-    Close;
-  end
 end;
 
-procedure TfmMain.OpenDataTables(DataFileName: String);
-  var sqSetId: TSqlite3Dataset;
+procedure TfmMain.MakeTableUpgrade(DataFileName: string);
+var
+  mySQL: string;
+begin
+  // Update database structure
+  with sqToolsTables do
+    try
+      // Change Notes
+      FileName := DataFileName;
+      TableName := 'Notes';
+      SQL := 'Select * from Notes where IDNotes = -1';
+      Open;
+      // Upgrade to 1.0.6
+      if FieldCount < 8 then
+      begin
+        Close;
+        mySQL := 'ALTER TABLE Subjects ADD SubjectsComments TEXT';
+        ExecSQL(MySQL);
+        mySQL := 'ALTER TABLE Notes ADD NotesTags VARCHAR(200)';
+        ExecSQL(MySQL);
+        mySQL := 'ALTER TABLE Notes ADD NotesAttName TEXT';
+        ExecSQL(MySQL);
+        Close;
+        // Error Message is in OpenTable procedure
+      end
+      // Upgrade to 1.1.2
+      else if FieldCount < 10 then
+      begin
+        Close;
+        mySQL := 'ALTER TABLE Notes ADD NotesCheckPwd VARCHAR(200)';
+        ExecSQL(MySQL);
+        mySQL := 'CREATE TABLE Tools (';
+        mySQL := MySQL + 'IDTools INTEGER PRIMARY KEY, ';
+        mySQL := MySQL + 'IDLastSubject INTEGER, ';
+        mySQL := MySQL + 'IDLastNote INTEGER); ';
+        ExecSQL(MySQL);
+        Close;
+        // Error Message is in OpenTable procedure
+      end
+      // Upgrade to 1.3.0
+      else if FieldCount < 11 then
+      begin
+        Close;
+        mySQL := 'ALTER TABLE Notes ADD NotesActivities TEXT';
+        ExecSQL(MySQL);
+        mySQL := 'ALTER TABLE Notes ADD NotesDateFormat VARCHAR(3)';
+        ExecSQL(MySQL);
+        Close;
+        // Error Message is in OpenTable procedure
+      end;
+      Close;
+      // Change Subjects
+      FileName := DataFileName;
+      TableName := 'Subjects';
+      SQL := 'Select * from Subjects where IDSubjects = -1';
+      Open;
+      // Upgrade to 1.3.1
+      if FieldCount < 6 then
+      begin
+        Close;
+        mySQL := 'ALTER TABLE Subjects ADD SubjectsBackColor VARCHAR(30)';
+        ExecSQL(MySQL);
+        mySQL := 'ALTER TABLE Subjects ADD SubjectsFontColor VARCHAR(30)';
+        ExecSQL(MySQL);
+        mySQL := 'ALTER TABLE Subjects ADD SubjectsSort INTEGER';
+        ExecSQL(MySQL);
+        mySQL := 'CREATE INDEX idxSubjectsSort ON Subjects (SubjectsSort);';
+        ExecSQL(MySQL);
+        mySQL := 'ALTER TABLE Notes ADD NotesBackColor VARCHAR(30)';
+        ExecSQL(MySQL);
+        mySQL := 'ALTER TABLE Notes ADD NotesFontColor VARCHAR(30)';
+        ExecSQL(MySQL);
+        mySQL := 'ALTER TABLE Notes ADD NotesSort INTEGER';
+        ExecSQL(MySQL);
+        mySQL := 'CREATE INDEX idxNotesSort ON Notes (NotesSort);';
+        ExecSQL(MySQL);
+        Close;
+        SQL := 'Select * from Subjects';
+        PrimaryKey := 'IDSubjects';
+        Open;
+        while not sqToolsTables.EOF do
+        begin
+          sqToolsTables.Edit;
+          sqToolsTables.FieldByName('SubjectsSort').AsInteger :=
+            sqToolsTables.FieldByName('IDSubjects').AsInteger;
+          sqToolsTables.Post;
+          sqToolsTables.Next;
+        end;
+        sqToolsTables.ApplyUpdates;
+        Close;
+        TableName := 'Notes';
+        SQL := 'Select * from Notes';
+        PrimaryKey := 'IDNotes';
+        Open;
+        while not sqToolsTables.EOF do
+        begin
+          sqToolsTables.Edit;
+          sqToolsTables.FieldByName('NotesSort').AsInteger :=
+            sqToolsTables.FieldByName('IDNotes').AsInteger;
+          sqToolsTables.Post;
+          sqToolsTables.Next;
+        end;
+        sqToolsTables.ApplyUpdates;
+        // Error Message is in OpenTable procedure
+      end
+    finally
+      PrimaryKey := '';
+      Close;
+    end;
+end;
+
+procedure TfmMain.OpenDataTables(DataFileName: string);
+var
+  sqSetId: TSqlite3Dataset;
 begin
   // Open tables
   // The file could not exist (e.g. when it is loaded automatically at startup)
@@ -6631,19 +7378,22 @@ begin
   pnGridSubjects.Visible := True;
   spSplitterSubjects.Visible := True;
   try
-    with sqNotes do begin
+    with sqNotes do
+    begin
       FileName := DataFileName;
       TableName := 'Notes';
       PrimaryKey := 'IDNotes';
     end;
     // sqNotes is opened in the sqSubjects.AfterScroll event
-    with sqDelRec do begin
+    with sqDelRec do
+    begin
       // This table must be opened each time there is a delete of something
       FileName := DataFileName;
       TableName := 'DelRec';
       PrimaryKey := 'IDDelRec';
     end;
-    with sqSubjects do begin
+    with sqSubjects do
+    begin
       FileName := DataFileName;
       TableName := 'Subjects';
       PrimaryKey := 'IDSubjects';
@@ -6666,15 +7416,17 @@ begin
         sqSetId.FieldByName('IDLastSubject').AsInteger, []);
       // Now text can be loaded
       IsTextToLoad := True;
-      if sqNotes.Active = True then begin
+      if sqNotes.Active = True then
+      begin
         // If there's no need to move the cursor...
         if sqSetId.FieldByName('IDLastNote').AsInteger =
           sqNotes.FieldByName('IDNotes').AsInteger then
           // ... load the text ...
           sqNotesAfterScroll(nil)
         // ... otherwise move the cursor and load the text
-        else sqNotes.Locate('IDNotes',
-          sqSetId.FieldByName('IDLastNote').AsInteger, []);
+        else
+          sqNotes.Locate('IDNotes',
+            sqSetId.FieldByName('IDLastNote').AsInteger, []);
       end;
       sqSetId.Close;
     finally
@@ -6682,7 +7434,8 @@ begin
     end;
     // sqNotes is opened in the sqSubjects.AfterScroll event,
     // but if there are no subjects the dataset is not opened; so...
-    if sqSubjects.RecordCount = 0 then begin
+    if sqSubjects.RecordCount = 0 then
+    begin
       sqNotes.SQL := 'Select * from Notes where IDNotes = -1';
       sqNotes.Open;
       // Add a subject without asking
@@ -6722,46 +7475,55 @@ begin
   miNotesShowOnlyText.Enabled := True;
   miNotesShowActivities.Enabled := True;
   miNotesShowCal.Enabled := True;
-  if ((FileExistsUTF8(SyncFolder + DirectorySeparator + ExtractFileName(DataFileName))) and
-    (SyncFolder <> ExtractFileDir(DataFileName))) then begin
-      miToolsSyncDo.Enabled := True;
-      tbToolsSyncDo.Enabled := True;
+  if ((FileExistsUTF8(SyncFolder + DirectorySeparator +
+    ExtractFileName(DataFileName))) and (SyncFolder <>
+    ExtractFileDir(DataFileName))) then
+  begin
+    miToolsSyncDo.Enabled := True;
+    tbToolsSyncDo.Enabled := True;
   end;
   miToolsCompact.Enabled := True;
   miToolsLanguage.Enabled := False;
   // Update last archives menu
-  if sqSubjects.FileName = LastDatabase2 then begin
+  if sqSubjects.FileName = LastDatabase2 then
+  begin
     LastDatabase2 := LastDatabase1;
     LastDatabase1 := sqSubjects.FileName;
   end
-  else if sqSubjects.FileName = LastDatabase3 then begin
+  else if sqSubjects.FileName = LastDatabase3 then
+  begin
     LastDatabase3 := LastDatabase2;
     LastDatabase2 := LastDatabase1;
     LastDatabase1 := sqSubjects.FileName;
   end
-  else if sqSubjects.FileName <> LastDatabase1 then begin
+  else if sqSubjects.FileName <> LastDatabase1 then
+  begin
     //also = LastDatabase4
     LastDatabase4 := LastDatabase3;
     LastDatabase3 := LastDatabase2;
     LastDatabase2 := LastDatabase1;
     LastDatabase1 := sqSubjects.FileName;
   end;
-  if LastDatabase1 <> '' then begin
+  if LastDatabase1 <> '' then
+  begin
     miFileOpenLast1.Caption := ExtractFileNameOnly(LastDatabase1);
     miFileOpenLast1.Visible := True;
     miLine6.Visible := True;
   end;
-  if LastDatabase2 <> '' then begin
+  if LastDatabase2 <> '' then
+  begin
     miFileOpenLast2.Caption := ExtractFileNameOnly(LastDatabase2);
     miFileOpenLast2.Visible := True;
     miLine6.Visible := True;
   end;
-  if LastDatabase3 <> '' then begin
+  if LastDatabase3 <> '' then
+  begin
     miFileOpenLast3.Caption := ExtractFileNameOnly(LastDatabase3);
     miFileOpenLast3.Visible := True;
     miLine6.Visible := True;
   end;
-  if LastDatabase4 <> '' then begin
+  if LastDatabase4 <> '' then
+  begin
     miFileOpenLast4.Caption := ExtractFileNameOnly(LastDatabase4);
     miFileOpenLast4.Visible := True;
     miLine6.Visible := True;
@@ -6770,7 +7532,8 @@ begin
   fmMain.Caption := 'MyNotex - ' + ExtractFilePath(DataFileName) +
     ExtractFileNameOnly(DataFileName);
   // Autosync
-  if flAutosync = True then begin
+  if flAutosync = True then
+  begin
     if miToolsSyncDo.Enabled = True then
     begin
       miToolsSyncDoClick(nil);
@@ -6779,6 +7542,10 @@ begin
   end;
   // Set default font
   dbText.SetDefaultFont(DefFontName, DefFontSize + ZoomFontSize);
+  // Set paragraph space
+  dbText.SetParagraphSpace(ParagraphSpace);
+  // Set line space
+  dbText.SetLineSpace(LineSpace);
   // To activate menu items and buttons
   dsNotesDataChange(nil, nil);
   // File not changed
@@ -6786,41 +7553,42 @@ begin
 end;
 
 procedure TfmMain.CloseDataTables;
-  var sqSetId: TSqlite3Dataset;
-  i: Integer;
+var
+  sqSetId: TSqlite3Dataset;
+  i: integer;
 begin
   // Set ID of Subject and Note in use
   // The first condition is useful to close the software
   // even if the file in use is deleted
-  if ((FileExistsUTF8(sqSubjects.FileName)) and
-    (sqSubjects.Active = True)) then try
-    sqSetId := TSqlite3Dataset.Create(Self);
-    sqSetId.FileName := sqNotes.FileName;
-    sqSetId.TableName := 'Tools';
-    sqSetId.PrimaryKey := 'IDTools';
-    sqSetId.Open;
-    sqSetId.Edit;
-    sqSetId.FieldByName('IDLastSubject').AsInteger :=
-      sqSubjects.FieldByName('IDSubjects').AsInteger;
-    sqSetId.FieldByName('IDLastNote').AsInteger :=
-      sqNotes.FieldByName('IDNotes').AsInteger;
-    sqSetId.Post;
-    sqSetId.ApplyUpdates;
-    sqSetId.Close;
-    // Autosync
-    if flAutosync = True then
-    begin
-      if miToolsSyncDo.Enabled = True then
+  if ((FileExistsUTF8(sqSubjects.FileName)) and (sqSubjects.Active = True)) then
+    try
+      sqSetId := TSqlite3Dataset.Create(Self);
+      sqSetId.FileName := sqNotes.FileName;
+      sqSetId.TableName := 'Tools';
+      sqSetId.PrimaryKey := 'IDTools';
+      sqSetId.Open;
+      sqSetId.Edit;
+      sqSetId.FieldByName('IDLastSubject').AsInteger :=
+        sqSubjects.FieldByName('IDSubjects').AsInteger;
+      sqSetId.FieldByName('IDLastNote').AsInteger :=
+        sqNotes.FieldByName('IDNotes').AsInteger;
+      sqSetId.Post;
+      sqSetId.ApplyUpdates;
+      sqSetId.Close;
+      // Autosync
+      if flAutosync = True then
       begin
-        if flFileChanged = True then
+        if miToolsSyncDo.Enabled = True then
         begin
-          miToolsSyncDoClick(nil);
+          if flFileChanged = True then
+          begin
+            miToolsSyncDoClick(nil);
+          end;
         end;
       end;
+    finally
+      sqSetId.Free;
     end;
-  finally
-    sqSetId.Free;
-  end;
   // Close tables
   sqSubjects.Close;
   sqNotes.Close;
@@ -6863,6 +7631,7 @@ begin
   miNotesNew.Enabled := False;
   tbNotesNew.Enabled := False;
   miNotesDelete.Enabled := False;
+  miNotesUndo.Enabled := False;
   pmNotesNew.Enabled := False;
   pmNotesDelete.Enabled := False;
   pmNotesLook.Enabled := False;
@@ -6918,49 +7687,58 @@ begin
   tbOpenNote.Enabled := False;
   tbFind.Enabled := False;
   fmMain.Caption := 'MyNotex';
-  sbStatusBar.Panels[0].Text := sbr008;
+  sbStatusBar.Panels[0].Text := ' ' + sbr008;
   sbStatusBar.Panels[1].Text := '';
+  sbStatusBar.Panels[2].Text := '';
   // Clear the bookmarks
   for i := 0 to 9 do
     BookmarkList[i] := '';
+  // Clear undo data
+  ClearUndoData;
 end;
 
 procedure TfmMain.SaveAllData;
 begin
   // Save all data
-  if dsSubjects.State in [dsInsert, dsEdit] then begin
+  if dsSubjects.State in [dsInsert, dsEdit] then
+  begin
     sqSubjects.Post;
     sqSubjects.ApplyUpdates;
   end;
-  if dsNotes.State in [dsInsert, dsEdit] then begin
+  if dsNotes.State in [dsInsert, dsEdit] then
+  begin
     sqNotes.Post;
     sqNotes.ApplyUpdates;
   end;
   // Restart timer if enabled
-  if tmTimerSave.Enabled = True then begin
+  if tmTimerSave.Enabled = True then
+  begin
     tmTimerSave.Enabled := False;
     tmTimerSave.Enabled := True;
   end;
 end;
 
-procedure TfmMain.FindData;
-  var IDFakeRec, TagsList: TStringList;
-  sqGetFakeID: TSqlite3Dataset;
+procedure TfmMain.FindData(SearchWithin: boolean);
+var
+  IDFakeRec, TagsList, OldIDNotes, OldIDSubjects: TStringList;
+  sqGetFakeID, sqGetOldID: TSqlite3Dataset;
   stOrig, stDest: WideString;
-  SqlCoded: String;
-  i: Integer;
-  IsTag: Boolean;
+  SqlCoded: string;
+  i: integer;
+  IsTag: boolean;
   DateStart, DateEnd: TDate;
 begin
   // Search from the bottom of the form
   // To be sure to search on last version of data
   SaveAllData;
-  if edFindText.Text = '' then begin
+  if edFindText.Text = '' then
+  begin
     MessageDlg(msg021, mtInformation, [mbOK], 0);
     Abort;
   end;
   // Check the single date
-  if cbFindKind.ItemIndex = 6 then begin
+  if cbFindKind.ItemIndex = 6 then
+  begin
     try
       DateStart := StrToDate(edFindText.Text);
     except
@@ -6969,26 +7747,28 @@ begin
     end;
   end;
   // Check the dates range
-  if cbFindKind.ItemIndex = 7 then begin
+  if cbFindKind.ItemIndex = 7 then
+  begin
     edFindText.Text := StringReplace(edFindText.Text, '  ', ' ', [rfReplaceAll]);
     edFindText.Text := StringReplace(edFindText.Text, ' ,', ',', [rfReplaceAll]);
     edFindText.Text := StringReplace(edFindText.Text, ',  ', ',', [rfReplaceAll]);
     edFindText.Text := StringReplace(edFindText.Text, ', ', ',', [rfReplaceAll]);
     try
       DateStart := StrToDate(UTF8Copy(edFindText.Text, 1,
-        UTF8Pos(',' , edFindText.Text) - 1));
+        UTF8Pos(',', edFindText.Text) - 1));
     except
       MessageDlg(msg061, mtError, [mbOK], 0);
       Exit;
     end;
     try
       DateEnd := StrToDate(UTF8Copy(edFindText.Text,
-        UTF8Pos(',' , edFindText.Text) + 1, UTF8Length(edFindText.Text)));
+        UTF8Pos(',', edFindText.Text) + 1, UTF8Length(edFindText.Text)));
     except
       MessageDlg(msg061, mtError, [mbOK], 0);
       Exit;
     end;
-    if DateEnd < DateStart then begin
+    if DateEnd < DateStart then
+    begin
       MessageDlg(msg061, mtError, [mbOK], 0);
       Exit;
     end;
@@ -6997,59 +7777,137 @@ begin
   // If tag is searched, clean the field
   if cbFindKind.ItemIndex = 5 then
     edFindText.Text := CleanTagsField(edFindText.Text);
-  if sqFind.Active = True then begin
-    sqFind.Close
+  //Get the searched ID
+  OldIDSubjects := TStringList.Create;
+  OldIDNotes := TStringList.Create;
+  if SearchWithin = True then
+  begin
+    sqGetOldID := TSqlite3Dataset.Create(Self);
+    sqGetOldID.FileName := sqNotes.FileName;
+    sqGetOldID.SQL := sqFind.SQL;
+    sqGetOldID.Open;
+    while not sqGetOldID.EOF do
+    begin
+      if cbFindKind.ItemIndex < 2 then
+        OldIDSubjects.Add(sqGetOldID.FieldByName('IDSubjects').AsString)
+      else
+        OldIDNotes.Add(sqGetOldID.FieldByName('IDNotes').AsString);
+      sqGetOldID.Next;
+    end;
+    sqGetOldID.Close;
+    sqGetOldID.Free;
+  end;
+  if sqFind.Active = True then
+  begin
+    sqFind.Close;
   end;
   // Subject title begins with
-  if cbFindKind.ItemIndex = 0 then begin
+  if cbFindKind.ItemIndex = 0 then
+  begin
     sqFind.SQL := 'Select IDSubjects, SubjectsName from Subjects ' +
-      'where SubjectsName like "' + edFindText.Text + '%" ' +
-      'ORDER BY SubjectsName collate nocase, IDSubjects';
+      'where SubjectsName like "' + edFindText.Text + '%" ';
+    if OldIDSubjects.Count > 0 then
+    begin
+      sqFind.SQL := sqFind.SQL + ' and (';
+      for i := 0 to OldIDSubjects.Count - 1 do
+      begin
+        sqFind.SQL := sqFind.SQL + ' Subjects.IDSubjects = ' + OldIDSubjects[i];
+        if i < OldIDSubjects.Count - 1 then
+          sqFind.SQL := sqFind.SQL + ' or ';
+      end;
+      sqFind.SQL := sqFind.SQL + ') ';
+    end;
+    sqFind.SQL := sqFind.SQL + ' ORDER BY SubjectsName collate nocase, IDSubjects';
   end
   // Subject title contains
-  else if cbFindKind.ItemIndex = 1 then begin
+  else if cbFindKind.ItemIndex = 1 then
+  begin
     sqFind.SQL := 'Select IDSubjects, SubjectsName from Subjects ' +
-      'where SubjectsName like "%' + edFindText.Text + '%" ' +
-      'ORDER BY SubjectsName collate nocase, IDSubjects'
+      'where SubjectsName like "%' + edFindText.Text + '%" ';
+    if OldIDSubjects.Count > 0 then
+    begin
+      sqFind.SQL := sqFind.SQL + ' and (';
+      for i := 0 to OldIDSubjects.Count - 1 do
+      begin
+        sqFind.SQL := sqFind.SQL + ' Subjects.IDSubjects = ' + OldIDSubjects[i];
+        if i < OldIDSubjects.Count - 1 then
+          sqFind.SQL := sqFind.SQL + ' or ';
+      end;
+      sqFind.SQL := sqFind.SQL + ') ';
+    end;
+    sqFind.SQL := sqFind.SQL + ' ORDER BY SubjectsName collate nocase, IDSubjects';
   end
   // Text contains
-  else if cbFindKind.ItemIndex = 2 then begin
-  // Note title begins with
+  else if cbFindKind.ItemIndex = 2 then
+  begin
+    // Note title begins with
     sqFind.SQL := 'Select IDSubjects, SubjectsName, IDNotes, NotesTitle, ' +
       'NotesDate from Subjects, Notes ' +
       'where Notes.ID_Subjects = Subjects.IDSubjects ' +
       'and NotesTitle like "' + edFindText.Text + '%" ';
-    if miOrderByTitle.Checked = True then begin
+    if OldIDNotes.Count > 0 then
+    begin
+      sqFind.SQL := sqFind.SQL + ' and (';
+      for i := 0 to OldIDNotes.Count - 1 do
+      begin
+        sqFind.SQL := sqFind.SQL + ' Notes.IDNotes = ' + OldIDNotes[i];
+        if i < OldIDNotes.Count - 1 then
+          sqFind.SQL := sqFind.SQL + ' or ';
+      end;
+      sqFind.SQL := sqFind.SQL + ') ';
+    end;
+    if miOrderByTitle.Checked = True then
+    begin
       sqFind.SQL := sqFind.SQL +
-      'ORDER BY SubjectsName collate nocase, IDSubjects, NotesTitle collate nocase, IDNotes'
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesTitle collate nocase, IDNotes';
     end
-    else if miOrderByDate.Checked = True then begin
+    else if miOrderByDate.Checked = True then
+    begin
       sqFind.SQL := sqFind.SQL +
-      'ORDER BY SubjectsName collate nocase, IDSubjects, NotesDate, IDNotes'
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesDate, IDNotes';
     end
-    else begin
+    else
+    begin
       sqFind.SQL := sqFind.SQL +
-      'ORDER BY SubjectsName collate nocase, IDSubjects, NotesSort, IDNotes'
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesSort, IDNotes';
     end;
   end
-  else if cbFindKind.ItemIndex = 3 then begin
-  // Note title contains
+  else if cbFindKind.ItemIndex = 3 then
+  begin
+    // Note title contains
     sqFind.SQL := 'Select IDSubjects, SubjectsName, IDNotes, NotesTitle, ' +
       'NotesDate from Subjects, Notes ' +
       'where Notes.ID_Subjects = Subjects.IDSubjects ' +
       'and NotesTitle like "%' + edFindText.Text + '%" ';
-      if miOrderByTitle.Checked = True then begin
-        sqFind.SQL := sqFind.SQL +
-        'ORDER BY SubjectsName collate nocase, IDSubjects, NotesTitle collate nocase, IDNotes'
-      end
-      else if miOrderByDate.Checked = True then begin
-        sqFind.SQL := sqFind.SQL + 'ORDER BY SubjectsName collate nocase, IDSubjects, NotesDate, IDNotes'
-      end
-      else begin
-        sqFind.SQL := sqFind.SQL + 'ORDER BY SubjectsName collate nocase, IDSubjects, NotesSort, IDNotes'
-      end
+    if OldIDNotes.Count > 0 then
+    begin
+      sqFind.SQL := sqFind.SQL + ' and (';
+      for i := 0 to OldIDNotes.Count - 1 do
+      begin
+        sqFind.SQL := sqFind.SQL + ' Notes.IDNotes = ' + OldIDNotes[i];
+        if i < OldIDNotes.Count - 1 then
+          sqFind.SQL := sqFind.SQL + ' or ';
+      end;
+      sqFind.SQL := sqFind.SQL + ') ';
+    end;
+    if miOrderByTitle.Checked = True then
+    begin
+      sqFind.SQL := sqFind.SQL +
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesTitle collate nocase, IDNotes';
     end
-  else if cbFindKind.ItemIndex = 4 then begin
+    else if miOrderByDate.Checked = True then
+    begin
+      sqFind.SQL := sqFind.SQL +
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesDate, IDNotes';
+    end
+    else
+    begin
+      sqFind.SQL := sqFind.SQL +
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesSort, IDNotes';
+    end;
+  end
+  else if cbFindKind.ItemIndex = 4 then
+  begin
     // Text contains
     SqlCoded := edFindText.Text;
     SqlCoded := StringReplace(SqlCoded, '<', #5, [rfReplaceAll]);
@@ -7061,15 +7919,18 @@ begin
     sqGetFakeID.SQL := 'Select IDSubjects, SubjectsName, IDNotes, NotesTitle, ' +
       'NotesDate, NotesText from Subjects, Notes ' +
       'where Notes.ID_Subjects = Subjects.IDSubjects ' +
-      'and Notes.NotesCheckPwd is null ' +
-      'and NotesText like "%' + SqlCoded + '%" ';
+      'and Notes.NotesCheckPwd is null ' + 'and NotesText like "%' +
+      SqlCoded + '%" ';
     sqGetFakeID.Open;
     IDFakeRec := TStringList.Create;
-    while not sqGetFakeID.EOF do begin;
+    while not sqGetFakeID.EOF do
+    begin
+      ;
       stOrig := sqGetFakeID.FieldByName('NotesText').AsWideString;
       IsTag := False;
       // Delete html tags
-      for i := 1 to UTF8Length(StOrig) do begin
+      for i := 1 to UTF8Length(StOrig) do
+      begin
         if StOrig[i] = '<' then
           IsTag := True
         else if StOrig[i] = '>' then
@@ -7086,37 +7947,54 @@ begin
     sqFind.SQL := 'Select IDSubjects, SubjectsName, IDNotes, NotesTitle, ' +
       'NotesDate, NotesText from Subjects, Notes ' +
       'where Notes.ID_Subjects = Subjects.IDSubjects ' +
-      'and Notes.NotesCheckPwd is null ' +
-      'and NotesText like "%' + SqlCoded + '%" ';
-    if IDFakeRec.Count > 0 then begin
+      'and Notes.NotesCheckPwd is null ' + 'and NotesText like "%' +
+      SqlCoded + '%" ';
+    if IDFakeRec.Count > 0 then
+    begin
       for i := 0 to IDFakeRec.Count - 1 do
         sqFind.SQL := sqFind.SQL + ' and Notes.IDNotes <> ' + IDFakeRec[i];
     end;
     IDFakeRec.Free;
-    if miOrderByTitle.Checked = True then begin
+    if OldIDNotes.Count > 0 then
+    begin
+      sqFind.SQL := sqFind.SQL + ' and (';
+      for i := 0 to OldIDNotes.Count - 1 do
+      begin
+        sqFind.SQL := sqFind.SQL + ' Notes.IDNotes = ' + OldIDNotes[i];
+        if i < OldIDNotes.Count - 1 then
+          sqFind.SQL := sqFind.SQL + ' or ';
+      end;
+      sqFind.SQL := sqFind.SQL + ') ';
+    end;
+    if miOrderByTitle.Checked = True then
+    begin
       sqFind.SQL := sqFind.SQL +
-      ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesTitle collate nocase, IDNotes'
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesTitle collate nocase, IDNotes';
     end
-    else if miOrderByDate.Checked = True then begin
+    else if miOrderByDate.Checked = True then
+    begin
       sqFind.SQL := sqFind.SQL +
-      ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesDate, IDNotes'
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesDate, IDNotes';
     end
-    else begin
+    else
+    begin
       sqFind.SQL := sqFind.SQL +
-      ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesSort, IDNotes'
-    end
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesSort, IDNotes';
+    end;
   end
-  else if cbFindKind.ItemIndex = 5 then begin
+  else if cbFindKind.ItemIndex = 5 then
+  begin
     // Tags equal to
     TagsList := TStringList.Create;
     TagsList.Text := StringReplace(edFindText.Text, ', ', LineEnding, [rfReplaceAll]);
     sqFind.SQL := 'Select IDSubjects, SubjectsName, IDNotes, NotesTitle, ' +
       'NotesDate from Subjects, Notes ' +
       'where Notes.ID_Subjects = Subjects.IDSubjects and (';
-    for i := 0 to TagsList.Count - 1 do begin
+    for i := 0 to TagsList.Count - 1 do
+    begin
       // Sometimes this search is case sensitive (why?), so use UpperCase
-      sqFind.SQL :=  sqFind.SQL +
-        ' ((UPPER(NotesTags) = "' + UpperCase(TagsList[i]) + '") ' +
+      sqFind.SQL := sqFind.SQL + ' ((UPPER(NotesTags) = "' +
+        UpperCase(TagsList[i]) + '") ' +
         // Beginning tag
         'or (UPPER(NotesTags) like "' + UpperCase(TagsList[i]) + ', %") ' +
         // Ending tag
@@ -7127,96 +8005,161 @@ begin
         sqFind.SQL := sqFind.SQL + ' or ';
     end;
     TagsList.Free;
-    if miOrderByTitle.Checked = True then begin
+    sqFind.SQL := sqFind.SQL + ' )';
+    if OldIDNotes.Count > 0 then
+    begin
+      sqFind.SQL := sqFind.SQL + ' and (';
+      for i := 0 to OldIDNotes.Count - 1 do
+      begin
+        sqFind.SQL := sqFind.SQL + ' Notes.IDNotes = ' + OldIDNotes[i];
+        if i < OldIDNotes.Count - 1 then
+          sqFind.SQL := sqFind.SQL + ' or ';
+      end;
+      sqFind.SQL := sqFind.SQL + ') ';
+    end;
+    if miOrderByTitle.Checked = True then
+    begin
       sqFind.SQL := sqFind.SQL +
-      ' ) ORDER BY SubjectsName collate nocase, IDSubjects, NotesTitle collate nocase, IDNotes'
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesTitle collate nocase, IDNotes';
     end
-    else if miOrderByDate.Checked = True then begin
+    else if miOrderByDate.Checked = True then
+    begin
       sqFind.SQL := sqFind.SQL +
-      ' ) ORDER BY SubjectsName collate nocase, IDSubjects, NotesDate, IDNotes'
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesDate, IDNotes';
     end
-    else begin
+    else
+    begin
       sqFind.SQL := sqFind.SQL +
-      ' ) ORDER BY SubjectsName collate nocase, IDSubjects, NotesSort, IDNotes'
-    end
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesSort, IDNotes';
+    end;
   end
-  else if cbFindKind.ItemIndex = 6 then begin
+  else if cbFindKind.ItemIndex = 6 then
+  begin
     // Date equal to
     sqFind.SQL := 'Select IDSubjects, SubjectsName, IDNotes, NotesTitle, ' +
       'NotesDate from Subjects, Notes ' +
       'where Notes.ID_Subjects = Subjects.IDSubjects and ' +
       ' Notes.NotesDate = ' + FloatToStr(DateStart);
-    if miOrderByTitle.Checked = True then begin
+    if OldIDNotes.Count > 0 then
+    begin
+      sqFind.SQL := sqFind.SQL + ' and (';
+      for i := 0 to OldIDNotes.Count - 1 do
+      begin
+        sqFind.SQL := sqFind.SQL + ' Notes.IDNotes = ' + OldIDNotes[i];
+        if i < OldIDNotes.Count - 1 then
+          sqFind.SQL := sqFind.SQL + ' or ';
+      end;
+      sqFind.SQL := sqFind.SQL + ') ';
+    end;
+    if miOrderByTitle.Checked = True then
+    begin
       sqFind.SQL := sqFind.SQL +
-      ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesTitle collate nocase, IDNotes'
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesTitle collate nocase, IDNotes';
     end
-    else if miOrderByDate.Checked = True then begin
+    else if miOrderByDate.Checked = True then
+    begin
       sqFind.SQL := sqFind.SQL +
-      ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesDate, IDNotes'
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesDate, IDNotes';
     end
-    else begin
+    else
+    begin
       sqFind.SQL := sqFind.SQL +
-      ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesSort, IDNotes'
-    end
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesSort, IDNotes';
+    end;
   end
-  else if cbFindKind.ItemIndex = 7 then begin
+  else if cbFindKind.ItemIndex = 7 then
+  begin
     // Dates between
     sqFind.SQL := 'Select IDSubjects, SubjectsName, IDNotes, NotesTitle, ' +
       'NotesDate from Subjects, Notes ' +
       'where Notes.ID_Subjects = Subjects.IDSubjects ' +
       ' and Notes.NotesDate >= ' + FloatToStr(DateStart) +
       ' and Notes.NotesDate <= ' + FloatToStr(DateEnd);
-    if miOrderByTitle.Checked = True then begin
+    if OldIDNotes.Count > 0 then
+    begin
+      sqFind.SQL := sqFind.SQL + ' and (';
+      for i := 0 to OldIDNotes.Count - 1 do
+      begin
+        sqFind.SQL := sqFind.SQL + ' Notes.IDNotes = ' + OldIDNotes[i];
+        if i < OldIDNotes.Count - 1 then
+          sqFind.SQL := sqFind.SQL + ' or ';
+      end;
+      sqFind.SQL := sqFind.SQL + ') ';
+    end;
+    if miOrderByTitle.Checked = True then
+    begin
       sqFind.SQL := sqFind.SQL +
-      ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesTitle collate nocase, IDNotes'
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesTitle collate nocase, IDNotes';
     end
-    else if miOrderByDate.Checked = True then begin
+    else if miOrderByDate.Checked = True then
+    begin
       sqFind.SQL := sqFind.SQL +
-      ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesDate, IDNotes'
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesDate, IDNotes';
     end
-    else begin
+    else
+    begin
       sqFind.SQL := sqFind.SQL +
-      ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesSort, IDNotes'
-    end
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesSort, IDNotes';
+    end;
   end
-  else if cbFindKind.ItemIndex = 8 then begin
+  else if cbFindKind.ItemIndex = 8 then
+  begin
     // Attachments names contains
     sqFind.SQL := 'Select IDSubjects, SubjectsName, IDNotes, NotesTitle, ' +
       'NotesDate from Subjects, Notes ' +
       'where Notes.ID_Subjects = Subjects.IDSubjects and (' +
       ' ((UPPER(NotesAttName) = "' + UpperCase(edFindText.Text) + '") ' +
-       // Beginning name
+      // Beginning name
       'or (UPPER(NotesAttName) like "' + UpperCase(edFindText.Text) + '%") ' +
       // Ending name
       'or (UPPER(NotesAttName) like "%' + UpperCase(edFindText.Text) + '") ' +
       // Middle name
       'or (UPPER(NotesAttName) like "%' + UpperCase(edFindText.Text) + '%")) ';
-    if miOrderByTitle.Checked = True then begin
+    sqFind.SQL := sqFind.SQL + ' )';
+    if OldIDNotes.Count > 0 then
+    begin
+      sqFind.SQL := sqFind.SQL + ' and (';
+      for i := 0 to OldIDNotes.Count - 1 do
+      begin
+        sqFind.SQL := sqFind.SQL + ' Notes.IDNotes = ' + OldIDNotes[i];
+        if i < OldIDNotes.Count - 1 then
+          sqFind.SQL := sqFind.SQL + ' or ';
+      end;
+      sqFind.SQL := sqFind.SQL + ') ';
+    end;
+    if miOrderByTitle.Checked = True then
+    begin
       sqFind.SQL := sqFind.SQL +
-      ' ) ORDER BY SubjectsName collate nocase, IDSubjects, NotesTitle collate nocase, IDNotes'
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesTitle collate nocase, IDNotes';
     end
-    else if miOrderByDate.Checked = True then begin
+    else if miOrderByDate.Checked = True then
+    begin
       sqFind.SQL := sqFind.SQL +
-      ' ) ORDER BY SubjectsName collate nocase, IDSubjects, NotesDate, IDNotes'
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesDate, IDNotes';
     end
-    else begin
+    else
+    begin
       sqFind.SQL := sqFind.SQL +
-      ' ) ORDER BY SubjectsName collate nocase, IDSubjects, NotesSort, IDNotes'
+        ' ORDER BY SubjectsName collate nocase, IDSubjects, NotesSort, IDNotes';
     end;
   end;
+  OldIDSubjects.Free;
+  OldIDNotes.Free;
   Screen.Cursor := crHourGlass;
   Application.ProcessMessages;
   grFilter.BeginUpdate;
   sqFind.Open;
   // Subjects
-  if cbFindKind.ItemIndex < 2 then begin
+  if cbFindKind.ItemIndex < 2 then
+  begin
     grFilter.Columns[0].Width := -1;
     grFilter.Columns[0].Visible := False;
     sqFind.FieldByName('SubjectsName').DisplayLabel := cpt012;
     grFilter.Columns[1].Width := WidthSubCol;
   end
   // Notes
-  else if cbFindKind.ItemIndex < 4 then begin
+  else if cbFindKind.ItemIndex < 4 then
+  begin
     grFilter.Columns[0].Width := -1;
     grFilter.Columns[0].Visible := False;
     sqFind.FieldByName('SubjectsName').DisplayLabel := cpt012;
@@ -7229,7 +8172,8 @@ begin
     grFilter.Columns[4].Width := WidthDateCol;
   end
   // Text contains or tag equal to or dates between or attachments names contains
-  else if cbFindKind.ItemIndex > 3 then begin
+  else if cbFindKind.ItemIndex > 3 then
+  begin
     grFilter.Columns[0].Width := -1;
     grFilter.Columns[0].Visible := False;
     sqFind.FieldByName('SubjectsName').DisplayLabel := cpt012;
@@ -7241,32 +8185,40 @@ begin
     sqFind.FieldByName('NotesDate').DisplayLabel := cpt014;
     grFilter.Columns[4].Width := WidthDateCol;
     // text contains
-    if cbFindKind.ItemIndex = 4 then begin
+    if cbFindKind.ItemIndex = 4 then
+    begin
       grFilter.Columns[5].Width := -1;
       grFilter.Columns[5].Visible := False;
     end;
   end;
   grFilter.EndUpdate;
   // To be ready to search in the text
-  if cbFindKind.ItemIndex = 4 then begin
+  if cbFindKind.ItemIndex = 4 then
+  begin
     edLocateText.Text := edFindText.Text;
   end;
   lbFound.Caption := cpt015 + ' ' + IntToStr(sqFind.RecordCount);
+  if SearchWithin = False then
+    meSearchCond.Clear;
+  meSearchCond.Lines.Add(cbFindKind.Text + ' "' + edFindText.Text + '"');
   // There's no way to set focus on the grfilter grid.
   // Following code does not work
   pnFind.SetFocus;
   grFilter.SetFocus;
+  bnFind2.Enabled := True;
   Screen.Cursor := crDefault;
 end;
 
 procedure TfmMain.LocateFromGrid;
 begin
   // Locate subjects and note from grFilter
-  if sqFind.Active = True then begin
-     sqSubjects.Locate('IDSubjects', sqFind.FieldByName('IDSubjects').AsInteger, []);
+  if sqFind.Active = True then
+  begin
+    sqSubjects.Locate('IDSubjects', sqFind.FieldByName('IDSubjects').AsInteger, []);
     // Search on notes
-    if sqFind.FieldCount > 2 then begin
-      sqNotes.Locate('IDNotes', sqFind.FieldByName('IDNotes').AsInteger, [])
+    if sqFind.FieldCount > 2 then
+    begin
+      sqNotes.Locate('IDNotes', sqFind.FieldByName('IDNotes').AsInteger, []);
     end;
     // Don't search automatically in the notes text here
     // because the text could be not already loaded
@@ -7274,32 +8226,39 @@ begin
 end;
 
 procedure TfmMain.FindFirstNext(Sender: TObject);
-  var StartPos, ChrPos: LongInt;
+var
+  StartPos, ChrPos: longint;
 begin
   // Find text in the current note's text
-  if edLocateText.Text <> '' then begin
-    if Sender = bnFindFirst then begin
+  if edLocateText.Text <> '' then
+  begin
+    if Sender = bnFindFirst then
+    begin
       // Find first
       ChrPos := UTF8Pos(UTF8LowerCase(edLocateText.Text),
         UTF8LowerCase(dbText.Text));
-      if ChrPos > 0 then begin
+      if ChrPos > 0 then
+      begin
         ChrPos := AdjustPosForImages(ChrPos);
         dbText.SelStart := ChrPos - 1;
         dbText.SelLength := UTF8Length(edLocateText.Text);
         // To show the selection
         dbText.SetFocus;
       end
-      else begin
+      else
+      begin
         MessageDlg(msg022, mtInformation, [mbOK], 0);
       end;
     end
-    else begin
+    else
+    begin
       // Find next
       StartPos := dbText.SelStart + dbText.SelLength + 1;
       ChrPos := UTF8Pos(UTF8LowerCase(edLocateText.Text),
-        UTF8Copy(UTF8LowerCase(dbText.Text), StartPos,
-        Length(dbText.Text) - StartPos + 1));
-      if ChrPos > 0 then begin
+        UTF8Copy(UTF8LowerCase(dbText.Text), StartPos, Length(dbText.Text) -
+        StartPos + 1));
+      if ChrPos > 0 then
+      begin
         ChrPos := StartPos + ChrPos - 1;
         ChrPos := AdjustPosForImages(ChrPos);
         dbText.SelStart := ChrPos - 1;
@@ -7307,7 +8266,8 @@ begin
         // To show the selection
         dbText.SetFocus;
       end
-      else begin
+      else
+      begin
         MessageDlg(msg022, mtInformation, [mbOK], 0);
       end;
     end;
@@ -7315,67 +8275,74 @@ begin
 end;
 
 procedure TfmMain.LoadTitleDateGrid;
-  var i: Integer;
+var
+  i: integer;
   sqTitDates: TSqlite3Dataset;
 begin
   // Load titles and date in titles grid
   sqTitDates := TSqlite3Dataset.Create(Self);
-  with sqTitDates do try
-    FileName := sqNotes.FileName;
-    SQL := sqNotes.SQL;
-    Open;
-    // Clear and add a line
-    grTitles.RowCount := 1;
-    for i := 0 to RecordCount - 1 do begin
-      grTitles.InsertColRow(False, i + 1);
-      grTitles.Cells[0, i + 1] := FieldByName('IDNotes'). AsString;
-      grTitles.Cells[1, i + 1] := FieldByName('NotesTitle'). AsString;
-      grTitles.Cells[2, i + 1] := FieldByName('NotesDate'). AsString;
-      if FieldByName('NotesCheckPwd').AsString <> '' then
-        grTitles.Cells[3, i + 1] := 'T'
-      else
-        grTitles.Cells[3, i + 1] := 'F';
-      if FieldByName('NotesActivities').AsString <> '' then
-        grTitles.Cells[4, i + 1] := 'T'
-      else
-        grTitles.Cells[4, i + 1] := 'F';
-      grTitles.Cells[5, i + 1] := FieldByName('NotesBackColor'). AsString;
-      grTitles.Cells[6, i + 1] := FieldByName('NotesFontColor'). AsString;
-      Next;
+  with sqTitDates do
+    try
+      FileName := sqNotes.FileName;
+      SQL := sqNotes.SQL;
+      Open;
+      // Clear and add a line
+      grTitles.RowCount := 1;
+      for i := 0 to RecordCount - 1 do
+      begin
+        grTitles.InsertColRow(False, i + 1);
+        grTitles.Cells[0, i + 1] := FieldByName('IDNotes').AsString;
+        grTitles.Cells[1, i + 1] := FieldByName('NotesTitle').AsString;
+        grTitles.Cells[2, i + 1] := FieldByName('NotesDate').AsString;
+        if FieldByName('NotesCheckPwd').AsString <> '' then
+          grTitles.Cells[3, i + 1] := 'T'
+        else
+          grTitles.Cells[3, i + 1] := 'F';
+        if FieldByName('NotesActivities').AsString <> '' then
+          grTitles.Cells[4, i + 1] := 'T'
+        else
+          grTitles.Cells[4, i + 1] := 'F';
+        grTitles.Cells[5, i + 1] := FieldByName('NotesBackColor').AsString;
+        grTitles.Cells[6, i + 1] := FieldByName('NotesFontColor').AsString;
+        Next;
+      end;
+      if grTitles.RowCount = 1 then
+        grTitles.RowCount := 2;
+      SyncTitleDateGrid;
+    finally
+      sqTitDates.Free;
     end;
-    if grTitles.RowCount = 1 then
-      grTitles.RowCount := 2;
-    SyncTitleDateGrid;
-  finally
-    sqTitDates.Free;
-  end;
 end;
 
 procedure TfmMain.SyncTitleDateGrid;
-  var i: Integer;
+var
+  i: integer;
 begin
-  if sqNotes.Active = True then begin
-    for i := 1 to grTitles.RowCount - 1 do begin
-      if grTitles.Cells[0, i] =
-        sqNotes.FieldByName('IDNotes').AsString then
+  if sqNotes.Active = True then
+  begin
+    for i := 1 to grTitles.RowCount - 1 do
+    begin
+      if grTitles.Cells[0, i] = sqNotes.FieldByName('IDNotes').AsString then
         grTitles.Row := i;
     end;
   end;
 end;
 
-procedure TfmMain.grTitlesSelectCell(Sender: TObject; aCol, aRow: Integer;
-  var CanSelect: Boolean);
+procedure TfmMain.grTitlesSelectCell(Sender: TObject; aCol, aRow: integer;
+  var CanSelect: boolean);
 begin
   // Select a note from its ID
-  if sqNotes.Active = True then begin
+  if sqNotes.Active = True then
+  begin
     sqNotes.Locate('IDNotes', grTitles.Cells[0, aRow], []);
   end;
 end;
 
-procedure TfmMain.CreateAttachment(FileNames: array of String);
-  var myZipper: TZipper;
-  AttDir: String;
-  i, n: Integer;
+procedure TfmMain.CreateAttachment(FileNames: array of string);
+var
+  myZipper: TZipper;
+  AttDir: string;
+  i, n: integer;
 begin
   Screen.Cursor := crHourGlass;
   Application.ProcessMessages;
@@ -7384,29 +8351,34 @@ begin
     if DirectoryExistsUTF8(AttDir) = False then
       CreateDirUTF8(AttDir);
   except
-    MessageDlg(msg029, mtWarning, [mbOk], 0);
+    MessageDlg(msg029, mtWarning, [mbOK], 0);
     Screen.Cursor := crDefault;
     Abort;
   end;
-  for i := 0 to Length(FileNames) - 1 do begin
+  for i := 0 to Length(FileNames) - 1 do
+  begin
     // The file is a directory
     if FileGetAttrUTF8(FileNames[i]) = 48 then
       Continue
-    else for n := 0 to lbAttNames.Items.Count - 1 do begin
-      if LowerCase(ExtractFileNameOnly(lbAttNames.Items[n])) =
-        LowerCase(ExtractFileNameOnly(FileNames[i])) then begin
-      MessageDlg(msg033 + LineEnding + ExtractFileNameOnly(FileNames[i]) + '.*.',
-        mtWarning, [mbOK], 0);
-      Screen.Cursor := crDefault;
-      Abort;
+    else
+      for n := 0 to lbAttNames.Items.Count - 1 do
+      begin
+        if LowerCase(ExtractFileNameOnly(lbAttNames.Items[n])) =
+          LowerCase(ExtractFileNameOnly(FileNames[i])) then
+        begin
+          MessageDlg(msg033 + LineEnding + ExtractFileNameOnly(FileNames[i]) + '.*.',
+            mtWarning, [mbOK], 0);
+          Screen.Cursor := crDefault;
+          Abort;
+        end;
       end;
-    end;
     try
       try
         Screen.Cursor := crHourGlass;
         myZipper := TZipper.Create;
-        myZipper.FileName := AttDir + DirectorySeparator + sqNotes.FieldByName('NotesUID').AsString +
-          '-' + ExtractFileNameOnly(FileNames[i]) + '.zip';
+        myZipper.FileName := AttDir + DirectorySeparator +
+          sqNotes.FieldByName('NotesUID').AsString + '-' +
+          ExtractFileNameOnly(FileNames[i]) + '.zip';
         myZipper.Entries.AddFileEntry(FileNames[i],
           ExtractFileName(FileNames[i]));
         myZipper.ZipAllFiles;
@@ -7416,20 +8388,23 @@ begin
         sqNotes.Post;
         sqNotes.ApplyUpdates;
       except
-        MessageDlg(msg028, mtWarning, [mbOk], 0);
+        MessageDlg(msg028, mtWarning, [mbOK], 0);
       end;
     finally
       myZipper.Free;
       Screen.Cursor := crDefault;
     end;
   end;
+  lbListAttach.Caption := stAttachments + ' [' +
+    IntToStr(lbAttNames.Items.Count) + ']';
   Screen.Cursor := crDefault;
 end;
 
 procedure TfmMain.CreateTagsList;
-  var TagsList, TagsFreq, TagsCurr: TStringList;
+var
+  TagsList, TagsFreq, TagsCurr: TStringList;
   sqTags: TSqlite3Dataset;
-  i, idxTag: Integer;
+  i, idxTag: integer;
 begin
   // Create tags list
   Screen.Cursor := crHourGlass;
@@ -7440,25 +8415,28 @@ begin
   sqTags.SQL := 'Select IDNotes, NotesTags from Notes where NotesTags not null';
   sqTags.Open;
   if sqTags.RecordCount > 1000 then
-  try
-    lbTagsNames.Items.Add(msg038);
-    Exit;
-  finally
-    sqTags.Free;
-    Screen.Cursor := crDefault;
-  end;
+    try
+      lbTagsNames.Items.Add(msg038);
+      Exit;
+    finally
+      sqTags.Free;
+      Screen.Cursor := crDefault;
+    end;
   try
     TagsList := TStringList.Create;
     TagsFreq := TStringList.Create;
     TagsCurr := TStringList.Create;
     TagsList.Capacity := 5000;
     TagsFreq.Capacity := 5000;
-    while not sqTags.EOF do begin
+    while not sqTags.EOF do
+    begin
       TagsCurr.Text := StringReplace(sqTags.FieldByName('NotesTags').AsString,
         ', ', LineEnding, [rfReplaceAll]);
-      for i := 0 to TagsCurr.Count - 1 do begin
+      for i := 0 to TagsCurr.Count - 1 do
+      begin
         idxTag := TagsList.IndexOf(TagsCurr[i]);
-        if idxTag < 0 then begin
+        if idxTag < 0 then
+        begin
           TagsList.Add(TagsCurr[i]);
           TagsFreq.Add('1');
         end
@@ -7490,13 +8468,15 @@ begin
   end;
 end;
 
-function TfmMain.CleanTagsField(myField: String): String;
-  var myText: String;
-  i: Integer;
+function TfmMain.CleanTagsField(myField: string): string;
+var
+  myText: string;
+  i: integer;
   TagsList, TagsCurr: TStringList;
 begin
   // Clean the tags field from wrong inputs
-  if myField <> '' then begin
+  if myField <> '' then
+  begin
     myText := myField;
     myText := StringReplace(myText, ',', ', ', [rfReplaceAll]);
     myText := StringReplace(myText, ' ,', ',', [rfReplaceAll]);
@@ -7515,11 +8495,12 @@ begin
       TagsCurr := TStringList.Create;
       TagsCurr.Capacity := 500;
       TagsCurr.Text := StringReplace(myText, ', ', LineEnding, [rfReplaceAll]);
-      for i := 0 to TagsCurr.Count - 1 do begin
+      for i := 0 to TagsCurr.Count - 1 do
+      begin
         if TagsList.IndexOf(TagsCurr[i]) < 0 then
           TagsList.Add(TagsCurr[i]);
       end;
-      myText :=  TagsList.Text;
+      myText := TagsList.Text;
     finally
       TagsList.Free;
       TagsCurr.Free;
@@ -7531,14 +8512,16 @@ begin
     Result := '';
 end;
 
-procedure TfmMain.AddImage(FileName: String);
-  var LevResize: Single;
+procedure TfmMain.AddImage(FileName: string);
+var
+  LevResize: single;
   myImage: TPicture;
 begin
   // Add image in note
   if FileExistsUTF8(FileName) = False then
     Abort;
-  with fmResizeImage do begin
+  with fmResizeImage do
+  begin
     Caption := cpt038;
     rgResizeImage.Caption := cpt038;
     bnSubCommCancel.Caption := cpt018;
@@ -7552,7 +8535,8 @@ begin
   finally
     myImage.Free;
   end;
-  if fmResizeImage.ShowModal = mrOK then begin
+  if fmResizeImage.ShowModal = mrOk then
+  begin
     Screen.Cursor := crHourGlass;
     Application.ProcessMessages;
     case fmResizeImage.rgResizeImage.ItemIndex of
@@ -7581,9 +8565,10 @@ begin
   end;
 end;
 
-function TfmMain.AdjustPosForImages(Pos: Integer): Integer;
-  var slPosImg: TStringList;
-    n: Integer;
+function TfmMain.AdjustPosForImages(Pos: integer): integer;
+var
+  slPosImg: TStringList;
+  n: integer;
 begin
   // Adjust cursor position for possibile images before it
   try
@@ -7591,8 +8576,10 @@ begin
     // slPosImg is created in the TRichMemo component code,
     // in the GetImagePosInText event
     slPosImg := dbText.GetImagePosInText;
-    if slPosImg.Count > 0 then begin
-      for n := 0 to slPosImg.Count - 1 do begin
+    if slPosImg.Count > 0 then
+    begin
+      for n := 0 to slPosImg.Count - 1 do
+      begin
         if StrToInt(slPosImg[n]) <= Pos then
           Inc(Pos);
       end;
@@ -7603,15 +8590,18 @@ begin
   end;
 end;
 
-function TfmMain.GetBullet: Integer;
-  var stNum: String;
+function TfmMain.GetBullet: integer;
+var
+  stNum: string;
 begin
   // Get bullet of the current line
   Result := 0;
   if Copy(dbText.Lines[dbText.CaretPos.Y], 1, 4) = '•' + #9 then
-      Result := 1
-  else begin
-    if Pos('.' + #9, Copy(dbText.Lines[dbText.CaretPos.Y], 1, 6)) > 0 then begin
+    Result := 1
+  else
+  begin
+    if Pos('.' + #9, Copy(dbText.Lines[dbText.CaretPos.Y], 1, 6)) > 0 then
+    begin
       stNum := Copy(dbText.Lines[dbText.CaretPos.Y], 1, 1);
       if ((stNum >= '0') and (stNum <= '9')) then
         Result := 2
@@ -7624,14 +8614,17 @@ begin
 end;
 
 procedure TfmMain.ZoomIncrease;
-  var MySelStart: Integer;
+var
+  MySelStart: integer;
 begin
   // Increase font size
   SaveAllData;
-  if ZoomFontSize < 36 then begin
+  if ZoomFontSize < 36 then
+  begin
     Inc(ZoomFontSize);
     dbText.SetDefaultFont(DefFontName, DefFontSize + ZoomFontSize);
-    if dbText.Visible = True then begin
+    if dbText.Visible = True then
+    begin
       MySelStart := dbText.SelStart;
       LoadRichMemo;
       dbText.SelStart := MySelStart;
@@ -7640,14 +8633,17 @@ begin
 end;
 
 procedure TfmMain.ZoomDecrease;
-  var MySelStart: Integer;
+var
+  MySelStart: integer;
 begin
   // Decrease font size
   SaveAllData;
-  if ZoomFontSize > 0 then begin
+  if ZoomFontSize > 0 then
+  begin
     Dec(ZoomFontSize);
     dbText.SetDefaultFont(DefFontName, DefFontSize + ZoomFontSize);
-    if dbText.Visible = True then begin
+    if dbText.Visible = True then
+    begin
       MySelStart := dbText.SelStart;
       LoadRichMemo;
       dbText.SelStart := MySelStart;
@@ -7662,23 +8658,28 @@ begin
     miNotesShowOnlyTextClick(nil);
 end;
 
-function TfmMain.CheckNumbers(Source: String): Boolean;
-var i: Integer;
+function TfmMain.CheckNumbers(Source: string): boolean;
+var
+  i: integer;
 begin
   // Checks if a string contains only numbers
   Result := True; //there are only numbers
-  if Length(Source) = 0 then begin
+  if Length(Source) = 0 then
+  begin
     Result := False;
   end
-  else for i := 1 to Length(Source) do begin
-    if ((Source[i] < '0') or (Source[i] > '9')) then begin
-      Result := False;
-      Exit;
+  else
+    for i := 1 to Length(Source) do
+    begin
+      if ((Source[i] < '0') or (Source[i] > '9')) then
+      begin
+        Result := False;
+        Exit;
+      end;
     end;
-  end;
 end;
 
-function TfmMain.AreFontParamsEqual(fp1, fp2: TFontParams): Boolean;
+function TfmMain.AreFontParamsEqual(fp1, fp2: TFontParams): boolean;
 begin
   // Check if two font params are equal
   Result := False;
@@ -7688,12 +8689,9 @@ begin
     fp1.Size := DefFontSize;
   if ((fp2.Size < 2) or (fp2.Size > 128)) then
     fp2.Size := DefFontSize;
-  if ((fp1.Color = fp2.Color) and
-    (fp1.Name = fp2.Name) and
-    (fp1.Size = fp2.Size) and
-    (fp1.Style = fp2.Style) and
-    (fp1.BackColor = fp2.BackColor) and
-    (fp1.Indented = fp2.Indented) and
+  if ((fp1.Color = fp2.Color) and (fp1.Name = fp2.Name) and
+    (fp1.Size = fp2.Size) and (fp1.Style = fp2.Style) and
+    (fp1.BackColor = fp2.BackColor) and (fp1.Indented = fp2.Indented) and
     (fp1.Alignment = fp2.Alignment)) then
     Result := True;
 end;
@@ -7701,31 +8699,64 @@ end;
 procedure TfmMain.tmTimerSaveTimer(Sender: TObject);
 begin
   // Save data on timer
-  SaveAllData;
-  tmTimerSave.Enabled := False;
-  tmTimerSave.Enabled := True;
+  if flNoAutosave = False then
+  begin
+    ;
+    SaveAllData;
+    tmTimerSave.Enabled := False;
+    tmTimerSave.Enabled := True;
+  end;
 end;
 
-function TfmMain.IsDirectoryEmpty(const myDir: string): Boolean;
-  var SearchRec: TSearchRec;
+procedure TfmMain.tmAlarmTimer(Sender: TObject);
+var
+  ftTime: string = 'hh:nn am/pm';
+  ftLeft: string = 'hh:nn';
+begin
+  // Check alarm
+  if fl24Hour = True then
+  begin
+    ftTime := 'hh:nn';
+  end;
+  if fmSetAlarm.tpAlarm.Time <= Time then
+  begin
+    tmAlarm.Enabled := False;
+    fmSetAlarm.cbAlarm.Checked := False;
+    sbStatusBar.Panels[1].Text := '';
+    fmShowAlarm.lbMessage.Caption :=
+      msg081 + ' ' + FormatDateTime(ftTime, Time) + '!';
+    fmShowAlarm.ShowModal;
+  end
+  else
+  begin
+    sbStatusBar.Panels[1].Text :=
+      FormatDateTime(ftTime, fmSetAlarm.tpAlarm.Time) + ' (' +
+      FormatDateTime(ftLeft, Time - IncMinute(fmSetAlarm.tpAlarm.Time, 1)) +
+      ' ' + msg082 + ')';
+  end;
+end;
+
+function TfmMain.IsDirectoryEmpty(const myDir: string): boolean;
+var
+  SearchRec: TSearchRec;
 begin
   // Check if a directory is empty
   try
     // faSysFile (= normal file) to avoid that also the directory is found
     Result := (FindFirst(myDir + DirectorySeparator + '*', faSysFile, SearchRec) <> 0);
   finally
-    FindClose(SearchRec) ;
+    FindClose(SearchRec);
   end;
 end;
 
-procedure TfmMain.SetCharCount(ToHide: Boolean);
+procedure TfmMain.SetCharCount(ToHide: boolean);
 begin
   // Count characters
   if ToHide = False then
-    sbStatusBar.Panels[1].Text := msg079 + ': ' +
-      FormatFloat('#,##0', dbText.CountChar)
+    sbStatusBar.Panels[2].Text :=
+      msg079 + ': ' + FormatFloat('#,##0', dbText.CountChar)
   else
-    sbStatusBar.Panels[1].Text := '';
+    sbStatusBar.Panels[2].Text := '';
 end;
 
 // *****************************************************************************
@@ -7801,7 +8832,7 @@ end;
 
 procedure TfmMain.tbActPasteGroupClick(Sender: TObject);
 begin
- // Paste a group of activities
+  // Paste a group of activities
   PasteActivityGroup;
 end;
 
@@ -7812,8 +8843,9 @@ begin
 end;
 
 procedure TfmMain.tbActMoveFromTextClick(Sender: TObject);
-  var i: Integer;
-    stActList: TStringList;
+var
+  i: integer;
+  stActList: TStringList;
 begin
   // Move all activities from the text to the grid
   if MessageDlg(msg078, mtConfirmation, [mbOK, mbCancel], 0) = mrCancel then
@@ -7860,10 +8892,10 @@ end;
 procedure TfmMain.tbActClearAllClick(Sender: TObject);
 begin
   // Clean activities grid
-  if MessageDlg(msg073, mtConfirmation,
-    [mbOK, mbCancel], 0) = mrCancel then Abort;
-  if MessageDlg(msg074, mtConfirmation,
-    [mbOK, mbCancel], 0) = mrCancel then Abort;
+  if MessageDlg(msg073, mtConfirmation, [mbOK, mbCancel], 0) = mrCancel then
+    Abort;
+  if MessageDlg(msg074, mtConfirmation, [mbOK, mbCancel], 0) = mrCancel then
+    Abort;
   grActGrid.Clean(1, 1, grActGrid.ColCount - 1,
     grActGrid.RowCount - 1, [gzNormal]);
   grActGrid.Row := 1;
@@ -7920,7 +8952,8 @@ begin
   if ((GetCode(grActGrid.Cells[ColCode, aRow]) = 1) and
     (GetSign(grActGrid.Cells[ColCode, aRow]) <> '*')) then
   begin
-    if aCol > ColCode then begin
+    if aCol > ColCode then
+    begin
       grActGrid.Canvas.Brush.Color := $F3F3F3;
       grActGrid.Canvas.FillRect(Classes.Rect(aRect.Left, aRect.Top,
         aRect.Right, aRect.Bottom));
@@ -7933,8 +8966,8 @@ begin
     begin
       grActGrid.Canvas.Brush.Color := clBtnFace;
       grActGrid.Canvas.TextOut(
-        (aRect.Right - aRect.Left -
-        grActGrid.Canvas.TextWidth(IntToStr(aRow))) div 2,
+        (aRect.Right - aRect.Left - grActGrid.Canvas.TextWidth(
+        IntToStr(aRow))) div 2,
         aRect.Top + 4,
         grActGrid.Cells[ColID, aRow]);
       grActGrid.Canvas.Pen.Color := clSilver;
@@ -7947,8 +8980,8 @@ begin
           with grActGrid.Canvas do
           begin
             Brush.Color := clDkGray;
-            FillRect(Classes.Rect(grActGrid.ColWidths[0] - 8, aRect.Top + 8,
-            grActGrid.ColWidths[0] - 2, aRect.Top + 17));
+            FillRect(Classes.Rect(grActGrid.ColWidths[0] - 8, aRect.Top +
+              8, grActGrid.ColWidths[0] - 2, aRect.Top + 17));
           end;
       end;
       // Row selected symbol
@@ -7967,32 +9000,30 @@ begin
     end;
   end;
   // Start date
-  if ((ACol = ColStartDate) and
-    ((grActGrid.EditorMode = False) or (grActGrid.Row <> aRow) or
-    (grActGrid.Col <> aCol))) then
+  if ((ACol = ColStartDate) and ((grActGrid.EditorMode = False) or
+    (grActGrid.Row <> aRow) or (grActGrid.Col <> aCol))) then
   begin
     if ((ARow > 0) and (grActGrid.Cells[ACol, ARow] <> '')) then
-    try
-      grActGrid.Canvas.TextOut(
-        aRect.Left + 2, aRect.Top + 3,
+      try
+        grActGrid.Canvas.TextOut(
+          aRect.Left + 2, aRect.Top + 3,
           FormatDateTime('ddd ' + FDate.ShortDateFormat,
           StrToDateTime(grActGrid.Cells[ACol, aRow], FDate)));
-    except;
-    end;
+      except;
+      end;
   end
   // End date
-  else if ((ACol = ColEndDate) and
-    ((grActGrid.EditorMode = False) or (grActGrid.Row <> aRow) or
-    (grActGrid.Col <> aCol))) then
+  else if ((ACol = ColEndDate) and ((grActGrid.EditorMode = False) or
+    (grActGrid.Row <> aRow) or (grActGrid.Col <> aCol))) then
   begin
     if ((ARow > 0) and (grActGrid.Cells[ACol, ARow] <> '')) then
-    try
-      grActGrid.Canvas.TextOut(
-        aRect.Left + 2, aRect.Top + 3,
+      try
+        grActGrid.Canvas.TextOut(
+          aRect.Left + 2, aRect.Top + 3,
           FormatDateTime('ddd ' + FDate.ShortDateFormat,
           StrToDateTime(grActGrid.Cells[ACol, aRow], FDate)));
-    except;
-    end;
+      except;
+      end;
   end
   // Completion
   else if ACol = ColCompletion then
@@ -8079,13 +9110,13 @@ begin
         begin
           MessageDlg(msg075, mtWarning, [mbOK], 0);
           grActGrid.Cells[ColStartDate, grActGrid.Row] :=
-          grActGrid.Cells[ColEndDate, grActGrid.Row];
+            grActGrid.Cells[ColEndDate, grActGrid.Row];
         end
         else
         begin
           MessageDlg(msg076, mtWarning, [mbOK], 0);
           grActGrid.Cells[ColEndDate, grActGrid.Row] :=
-          grActGrid.Cells[ColStartDate, grActGrid.Row];
+            grActGrid.Cells[ColStartDate, grActGrid.Row];
         end;
       end
       // Update duration
@@ -8135,6 +9166,17 @@ begin
     else
       grActGrid.Cells[ColState, grActGrid.Row] :=
         grActGrid.Columns.Items[ColState - 1].PickList[1];
+  end
+  else if grActGrid.Col = ColCost then
+  begin
+    if grActGrid.Cells[ColCost, grActGrid.Row] <> '' then
+      try
+        grActGrid.Cells[ColCost, grActGrid.Row] :=
+          FormatCurr('#,#.##', StrToCurr(StringReplace(
+          grActGrid.Cells[ColCost, grActGrid.Row], ThousandSeparator, '', [])));
+      except
+        grActGrid.Cells[ColCost, grActGrid.Row] := '';
+      end;
   end;
   // Update state if null
   if grActGrid.Cells[ColState, grActGrid.Row] = '' then
@@ -8176,7 +9218,7 @@ begin
     UpdateMainAct(grActGrid.Row);
   if IsGridEditing = True then
     EditNotesDataset;
-    // Set grid editing flag
+  // Set grid editing flag
   IsGridEditing := False;
   CalcActDates;
 end;
@@ -8186,34 +9228,40 @@ procedure TfmMain.grActGridGetEditMask(Sender: TObject; ACol, ARow: integer;
 begin
   // Set mask edit for date fields
   if ((ACol = ColStartDate) or (ACol = ColEndDate)) then
-    if  DateMask = '  -  -    ' then
+    if DateMask = '  -  -    ' then
       Value := '!99-99-9999;1;_'
     else
-      Value := '!9999-99-99;1;_'
+      Value := '!9999-99-99;1;_';
 end;
 
 procedure TfmMain.grActGridKeyDown(Sender: TObject; var Key: word; Shift: TShiftState);
 begin
   // Mask edit in numeric fields
   if ((grActGrid.Col = ColCompletion) or (grActGrid.Col = ColPriority) or
-    (grActGrid.Col = ColDuration) or (grActGrid.Col = ColCost)) then
+    (grActGrid.Col = ColDuration)) then
     // system keys and numbers at the top of the keyboard and in the pad
     if not (Key in [9, 13, 37, 38, 39, 40, 46, 48..57, 96..105, 113]) then
-      Key := 0;
+      Key := 0
+    else if (grActGrid.Col = ColCost) then
+      if not (Key in [9, 13, 37, 38, 39, 40, 46, 48..57, 96..105, 113, 188, 190]) then
+        Key := 0;
   if ((grActGrid.Col = ColStartDate) and
-    (GetSign(grActGrid.Cells[ColCode, grActGrid.Row]) = '*')) then begin
+    (GetSign(grActGrid.Cells[ColCode, grActGrid.Row]) = '*')) then
+  begin
     // Start date with space bar
-    if key = 32 then begin
+    if key = 32 then
+    begin
       grActGrid.Cells[ColStartDate, grActGrid.Row] :=
         DateTimeToStr(dtCalAct.Date, FDate);
-        // To update the colours
-        grActGrid.Repaint;
-        key := 0;
-        IsGridEditing := True;
-        grActGridEditingDone(nil);
+      // To update the colours
+      grActGrid.Repaint;
+      key := 0;
+      IsGridEditing := True;
+      grActGridEditingDone(nil);
     end
     // Increase start date
-    else if ((Key = 39) and (Shift = [ssShift])) then begin
+    else if ((Key = 39) and (Shift = [ssShift])) then
+    begin
       if grActGrid.Cells[ColStartDate, grActGrid.Row] = '' then
         grActGrid.Cells[ColStartDate, grActGrid.Row] :=
           DateTimeToStr(dtCalAct.Date, FDate)
@@ -8221,7 +9269,8 @@ begin
         grActGrid.Cells[ColStartDate, grActGrid.Row] :=
           DateTimeToStr(StrToDateTime(grActGrid.Cells[ColStartDate,
           grActGrid.Row], FDate) + 1, FDate)
-      else begin
+      else
+      begin
         if StrToInt(grActGrid.Cells[ColDuration, grActGrid.Row]) > 1 then
           grActGrid.Cells[ColStartDate, grActGrid.Row] :=
             DateTimeToStr(StrToDateTime(grActGrid.Cells[ColStartDate,
@@ -8234,7 +9283,8 @@ begin
       grActGridEditingDone(nil);
     end
     // Decrease start date
-    else if ((Key = 37) and (Shift = [ssShift])) then begin
+    else if ((Key = 37) and (Shift = [ssShift])) then
+    begin
       if grActGrid.Cells[ColStartDate, grActGrid.Row] = '' then
         grActGrid.Cells[ColStartDate, grActGrid.Row] :=
           DateTimeToStr(dtCalAct.Date, FDate)
@@ -8249,7 +9299,8 @@ begin
       grActGridEditingDone(nil);
     end
     // Delete the cell
-    else if Key = 46 then begin
+    else if Key = 46 then
+    begin
       grActGrid.Cells[ColStartDate, grActGrid.Row] := '';
       grActGrid.Cells[ColDuration, grActGrid.Row] := '';
       // To update the colours
@@ -8260,7 +9311,8 @@ begin
     end;
   end
   else if ((grActGrid.Col = ColEndDate) and
-    (GetSign(grActGrid.Cells[ColCode, grActGrid.Row]) = '*')) then begin
+    (GetSign(grActGrid.Cells[ColCode, grActGrid.Row]) = '*')) then
+  begin
     // End date with space bar
     if key = 32 then
     begin
@@ -8278,8 +9330,10 @@ begin
       grActGridEditingDone(nil);
     end
     // Increase end date
-    else if ((Key = 39) and (Shift = [ssShift])) then begin
-      if grActGrid.Cells[ColEndDate, grActGrid.Row] = '' then begin
+    else if ((Key = 39) and (Shift = [ssShift])) then
+    begin
+      if grActGrid.Cells[ColEndDate, grActGrid.Row] = '' then
+      begin
         if grActGrid.Cells[ColStartDate, grActGrid.Row] <> '' then
           grActGrid.Cells[ColEndDate, grActGrid.Row] :=
             DateTimeToStr(IncMonth(StrToDateTime(
@@ -8299,8 +9353,10 @@ begin
       grActGridEditingDone(nil);
     end
     // Decrease end date
-    else if ((Key = 37) and (Shift = [ssShift])) then begin
-      if grActGrid.Cells[ColEndDate, grActGrid.Row] = '' then begin
+    else if ((Key = 37) and (Shift = [ssShift])) then
+    begin
+      if grActGrid.Cells[ColEndDate, grActGrid.Row] = '' then
+      begin
         if grActGrid.Cells[ColStartDate, grActGrid.Row] <> '' then
           grActGrid.Cells[ColEndDate, grActGrid.Row] :=
             DateTimeToStr(IncMonth(StrToDateTime(
@@ -8313,7 +9369,8 @@ begin
         grActGrid.Cells[ColEndDate, grActGrid.Row] :=
           DateTimeToStr(StrToDateTime(grActGrid.Cells[ColEndDate,
           grActGrid.Row], FDate) - 1, FDate)
-      else begin
+      else
+      begin
         if StrToInt(grActGrid.Cells[ColDuration, grActGrid.Row]) > 1 then
           grActGrid.Cells[ColEndDate, grActGrid.Row] :=
             DateTimeToStr(StrToDateTime(grActGrid.Cells[ColEndDate,
@@ -8326,7 +9383,8 @@ begin
       grActGridEditingDone(nil);
     end
     // Delete the cell
-    else if Key = 46 then begin
+    else if Key = 46 then
+    begin
       grActGrid.Cells[ColEndDate, grActGrid.Row] := '';
       grActGrid.Cells[ColDuration, grActGrid.Row] := '';
       // To update the colours
@@ -8337,18 +9395,20 @@ begin
     end;
   end
   // Toggle status with space bar
-  else if grActGrid.Col = ColState then begin
+  else if grActGrid.Col = ColState then
+  begin
     if key = 32 then
     begin
-      if GetSign(grActGrid.Cells[ColCode, grActGrid.Row]) = '*' then begin
+      if GetSign(grActGrid.Cells[ColCode, grActGrid.Row]) = '*' then
+      begin
         if grActGrid.Cells[ColState, grActGrid.Row] =
           grActGrid.Columns.Items[ColState - 1].PickList[0] then
-            grActGrid.Cells[ColState, grActGrid.Row] :=
-              grActGrid.Columns.Items[ColState - 1].PickList[1]
+          grActGrid.Cells[ColState, grActGrid.Row] :=
+            grActGrid.Columns.Items[ColState - 1].PickList[1]
         else if grActGrid.Cells[ColState, grActGrid.Row] =
           grActGrid.Columns.Items[ColState - 1].PickList[1] then
-            grActGrid.Cells[ColState, grActGrid.Row] :=
-              grActGrid.Columns.Items[ColState - 1].PickList[2]
+          grActGrid.Cells[ColState, grActGrid.Row] :=
+            grActGrid.Columns.Items[ColState - 1].PickList[2]
         else
           grActGrid.Cells[ColState, grActGrid.Row] :=
             grActGrid.Columns.Items[ColState - 1].PickList[0];
@@ -8362,8 +9422,10 @@ begin
     end;
   end
   else if ((grActGrid.Col = ColDuration) and
-    (GetSign(grActGrid.Cells[ColCode, grActGrid.Row]) = '*')) then begin
-    if ((Key = 37) and (Shift = [ssShift])) then begin
+    (GetSign(grActGrid.Cells[ColCode, grActGrid.Row]) = '*')) then
+  begin
+    if ((Key = 37) and (Shift = [ssShift])) then
+    begin
       if StrToInt(grActGrid.Cells[ColDuration, grActGrid.Row]) > 1 then
         grActGrid.Cells[ColDuration, grActGrid.Row] :=
           IntToStr(StrToInt(grActGrid.Cells[ColDuration, grActGrid.Row]) - 1);
@@ -8373,7 +9435,8 @@ begin
       IsGridEditing := True;
       grActGridEditingDone(nil);
     end
-    else if ((Key = 39) and (Shift = [ssShift])) then begin
+    else if ((Key = 39) and (Shift = [ssShift])) then
+    begin
       grActGrid.Cells[ColDuration, grActGrid.Row] :=
         IntToStr(StrToInt(grActGrid.Cells[ColDuration, grActGrid.Row]) + 1);
       // To update the colours
@@ -8383,7 +9446,8 @@ begin
       grActGridEditingDone(nil);
     end
     // Clear duration
-    else if Key = 46 then begin
+    else if Key = 46 then
+    begin
       grActGrid.Cells[ColDuration, grActGrid.Row] := '';
       grActGrid.Cells[ColStartDate, grActGrid.Row] := '';
       grActGrid.Cells[ColEndDate, grActGrid.Row] := '';
@@ -8396,9 +9460,11 @@ begin
   end
   // Clear cost
   else if ((grActGrid.Col = ColCost) and
-    (GetSign(grActGrid.Cells[ColCode, grActGrid.Row]) = '*')) then begin
+    (GetSign(grActGrid.Cells[ColCode, grActGrid.Row]) = '*')) then
+  begin
     // Delete the cell
-    if Key = 46 then begin
+    if Key = 46 then
+    begin
       grActGrid.Cells[ColCost, grActGrid.Row] := '';
       // To update the colours
       grActGrid.Repaint;
@@ -8460,57 +9526,60 @@ begin
   begin
     CopyAllRows;
     Key := 0;
-  end
+  end;
 end;
 
-procedure TfmMain.grActGridKeyUp(Sender: TObject; var Key: Word;
-  Shift: TShiftState);
+procedure TfmMain.grActGridKeyUp(Sender: TObject; var Key: word; Shift: TShiftState);
 begin
   // Activate chenges on Ctrl + V
   if ((Key = Ord('V')) and (Shift = [ssCtrl])) then
   begin
     IsGridEditing := True;
     grActGridEditingDone(nil);
-  end
+  end;
 end;
 
-procedure TfmMain.grActGridPrepareCanvas(sender: TObject; aCol, aRow: Integer;
+procedure TfmMain.grActGridPrepareCanvas(Sender: TObject; aCol, aRow: integer;
   aState: TGridDrawState);
-  var myDate: TDate;
+var
+  myDate: TDate;
 begin
   // Possible bold
-  if grActGrid.Cells[ColCode, aRow] <> '' then begin
+  if grActGrid.Cells[ColCode, aRow] <> '' then
+  begin
     if Copy(grActGrid.Cells[ColCode, aRow], 1, 1) <> '*' then
     begin
       if ((aRow > 0) and (aCol > ColWbs)) then
-        begin
-          grActGrid.Canvas.Font.Style := [fsBold];
-        end;
+      begin
+        grActGrid.Canvas.Font.Style := [fsBold];
+      end;
     end;
   end;
   // Possible red or green
-  if aCol > 0 then begin
-    if grActGrid.Cells[ColState, aRow] =
-      grActGrid.Columns.Items[ColState - 1].PickList[2] then
+  if aCol > 0 then
+  begin
+    if grActGrid.Cells[ColState, aRow] = grActGrid.Columns.Items[ColState -
+      1].PickList[2] then
     begin
       grActGrid.Canvas.Font.Color := clGreen;
     end
-    else begin
+    else
+    begin
       if grActGrid.Cells[ColState, aRow] <>
         grActGrid.Columns.Items[ColState - 1].PickList[2] then
-      try
-        if grActGrid.Cells[ColEndDate, aRow] <> '' then
-        begin
-          if TryStrToDate(grActGrid.Cells[ColEndDate, aRow], myDate, FDate) = True then
+        try
+          if grActGrid.Cells[ColEndDate, aRow] <> '' then
           begin
-            if myDate  < Date then
+            if TryStrToDate(grActGrid.Cells[ColEndDate, aRow], myDate, FDate) = True then
             begin
-              grActGrid.Canvas.Font.Color := clRed;
+              if myDate < Date then
+              begin
+                grActGrid.Canvas.Font.Color := clRed;
+              end;
             end;
           end;
+        except;
         end;
-      except;
-      end;
     end;
   end;
 end;
@@ -8536,8 +9605,8 @@ begin
       Level := StrToInt(Copy(grActGrid.Cells[ColCode,
         grActGrid.MouseCoord(X, Y).Y], 2,
         Length(grActGrid.Cells[ColCode, grActGrid.MouseCoord(X, Y).Y])));
-      if ((X > Dist + IndentLev * Level - 16) and (X < Dist +
-        IndentLev * Level)) then
+      if ((X > Dist + IndentLev * Level - 16) and
+        (X < Dist + IndentLev * Level)) then
       begin
         if GetSign(grActGrid.Cells[ColCode, grActGrid.MouseCoord(X, Y).Y]) =
           '-' then
@@ -8607,24 +9676,30 @@ end;
 // ******************* GRID ACTIVITIES Load and Save ***************************
 
 procedure TfmMain.SaveActivitiesData;
-  var x, y: Integer;
-    myData: String;
+var
+  x, y: integer;
+  myData: string;
 begin
   // Save activities
-  if sqNotes.State in [dsEdit, dsInsert] then begin
+  if sqNotes.State in [dsEdit, dsInsert] then
+  begin
     // Empty grid
-    if ((LastRowAct = 1)  and (grActGrid.Cells[1, 1] = '')) then
+    if ((LastRowAct = 1) and (grActGrid.Cells[1, 1] = '')) then
       sqNotes.FieldByName('NotesActivities').AsString := ''
-    else begin
-      for y := 1 to LastRowAct do begin
-        for x := 1 to grActGrid.ColCount - 1 do begin
-          grActGrid.Cells[x, y] := StringReplace(grActGrid.Cells[x, y],
-            #9, ' ', [rfReplaceAll]);
+    else
+    begin
+      for y := 1 to LastRowAct do
+      begin
+        for x := 1 to grActGrid.ColCount - 1 do
+        begin
+          grActGrid.Cells[x, y] :=
+            StringReplace(grActGrid.Cells[x, y], #9, ' ', [rfReplaceAll]);
           myData := myData + grActGrid.Cells[x, y] + #9;
         end;
         myData := myData + LineEnding;
       end;
-      if sqNotes.FieldByName('NotesActivities').AsString <> myData then begin
+      if sqNotes.FieldByName('NotesActivities').AsString <> myData then
+      begin
         sqNotes.FieldByName('NotesActivities').AsString := myData;
         // To show the grey box
         grActGrid.Refresh;
@@ -8634,9 +9709,10 @@ begin
 end;
 
 procedure TfmMain.LoadActivitiesData;
-  var x: Integer;
-  myData: String;
-  stDtFormat: String;
+var
+  x: integer;
+  myData: string;
+  stDtFormat: string;
 begin
   // Load activities
   stDtFormat := sqNotes.FieldByName('NotesDateFormat').AsString;
@@ -8645,22 +9721,25 @@ begin
   grActGrid.Row := 1;
   meActNotes.Clear;
   LastRowAct := 1;
-  if sqNotes.FieldByName('NotesActivities').AsString <> '' then begin
+  if sqNotes.FieldByName('NotesActivities').AsString <> '' then
+  begin
     x := 1;
     myData := sqNotes.FieldByName('NotesActivities').AsString;
-    while UTF8Length(myData) > 0 do begin
+    while UTF8Length(myData) > 0 do
+    begin
       if ((DateOrder <> stDtFormat) and ((x = ColStartDate) or
         (x = ColEndDate))) then
       begin
-          grActGrid.Cells[x, LastRowAct] :=
-            ConvertDateFormat(UTF8Copy(myData, 1, UTF8Pos(#9, myData) - 1),
-              stDtFormat, DateOrder);
+        grActGrid.Cells[x, LastRowAct] :=
+          ConvertDateFormat(UTF8Copy(myData, 1, UTF8Pos(#9, myData) - 1),
+          stDtFormat, DateOrder);
       end
       else
         grActGrid.Cells[x, LastRowAct] :=
           UTF8Copy(myData, 1, UTF8Pos(#9, myData) - 1);
       myData := UTF8Copy(myData, UTF8Pos(#9, myData) + 1, UTF8Length(myData));
-      if UTF8Copy(myData, 1, 1) = LineEnding then begin
+      if UTF8Copy(myData, 1, 1) = LineEnding then
+      begin
         myData := UTF8Copy(myData, 2, UTF8Length(myData));
         x := 1;
         Inc(LastRowAct);
@@ -8677,7 +9756,8 @@ end;
 // ******************* GRID ACTIVITIES MAIN PROCEDURES *************************
 
 procedure TfmMain.SetLastRowGridActivities;
-  var i: Integer;
+var
+  i: integer;
 begin
   //Set last row of the grid
   for i := grActGrid.RowCount - 1 downto 1 do
@@ -8860,8 +9940,8 @@ begin
   try
     slSubAct.Add(grActGrid.Rows[aRow].CommaText);
     grActGrid.DeleteRow(aRow);
-    while ((aRow <= grActGrid.RowCount - 1) and (CodeCurrAct <
-        GetCode(grActGrid.Cells[ColCode, aRow]))) do
+    while ((aRow <= grActGrid.RowCount - 1) and
+        (CodeCurrAct < GetCode(grActGrid.Cells[ColCode, aRow]))) do
     begin
       if grActGrid.Cells[ColCode, aRow] = '' then
         Break;
@@ -8892,9 +9972,8 @@ var
   slSubAct: TStringList;
 begin
   // Move down activities
-  if ((grActGrid.Cells[ColCode, aRow] = '') or
-    (aRow = grActGrid.RowCount - 1)) then
-      Exit;
+  if ((grActGrid.Cells[ColCode, aRow] = '') or (aRow = grActGrid.RowCount - 1)) then
+    Exit;
   // Check a possible destination ID
   IDDest := 0;
   CodeCurrAct := GetCode(grActGrid.Cells[ColCode, aRow]);
@@ -8915,8 +9994,8 @@ begin
   try
     slSubAct.Add(grActGrid.Rows[aRow].CommaText);
     grActGrid.DeleteRow(aRow);
-    while ((aRow <= grActGrid.RowCount - 1) and (CodeCurrAct <
-        GetCode(grActGrid.Cells[ColCode, aRow]))) do
+    while ((aRow <= grActGrid.RowCount - 1) and
+        (CodeCurrAct < GetCode(grActGrid.Cells[ColCode, aRow]))) do
     begin
       if grActGrid.Cells[ColCode, aRow] = '' then
         Break;
@@ -8956,7 +10035,7 @@ end;
 
 procedure TfmMain.InsertRow(aRow: integer);
 var
-  i: Integer;
+  i: integer;
 begin
   // Insert an empty row and delete the last one if empty
   if ((aRow < grActGrid.RowCount - 1) and (grActGrid.Cells[ColCode, aRow] <> '')) then
@@ -8988,7 +10067,8 @@ begin
     grActGrid.DeleteRow(aRow);
     grActGrid.RowCount := NumRow;
     // Delete subactivities
-    while Code < GetCode(grActGrid.Cells[ColCode, aRow]) do begin
+    while Code < GetCode(grActGrid.Cells[ColCode, aRow]) do
+    begin
       grActGrid.DeleteRow(aRow);
       grActGrid.RowCount := NumRow;
     end;
@@ -9001,15 +10081,18 @@ begin
 end;
 
 procedure TfmMain.CopyAllRows;
-  var x, y: Integer;
-    myData: String;
+var
+  x, y: integer;
+  myData: string;
 begin
   // Copy all activities in clipboard
-  myData := lbWBS + #9 + lbState + #9 + lbActivity + #9 + lbStartDate + #9 +
-    lbEndDate + #9 + lbDuration + #9 + lbResources + #9 + lbPriority + #9 +
-    lbCompletion + #9 + lbCost + #9 + lbNotes + LineEnding;
-  for y := 1 to LastRowAct do begin
-    for x := 2 to grActGrid.ColCount - 1 do begin
+  myData := lbWBS + #9 + lbState + #9 + lbActivity + #9 + lbStartDate +
+    #9 + lbEndDate + #9 + lbDuration + #9 + lbResources + #9 + lbPriority +
+    #9 + lbCompletion + #9 + lbCost + #9 + lbNotes + LineEnding;
+  for y := 1 to LastRowAct do
+  begin
+    for x := 2 to grActGrid.ColCount - 1 do
+    begin
       myData := myData + StringReplace(grActGrid.Cells[x, y],
         LineEnding, ' ', [rfReplaceAll]) + #9;
     end;
@@ -9019,11 +10102,14 @@ begin
 end;
 
 procedure TfmMain.CopyActivityGroup;
-  var y, IDStart, IDEnd: Integer;
+var
+  y, IDStart, IDEnd: integer;
 begin
   // Copy activity group in ActivityGroup variable;
-  for IDStart := grActGrid.Row downto 1 do begin
-    if grActGrid.Cells[ColCode, IDStart] = '' then begin
+  for IDStart := grActGrid.Row downto 1 do
+  begin
+    if grActGrid.Cells[ColCode, IDStart] = '' then
+    begin
       Break;
     end
     else if GetCode(grActGrid.Cells[ColCode, IDStart]) = 1 then
@@ -9031,19 +10117,23 @@ begin
   end;
   if grActGrid.Cells[ColCode, IDStart] = '' then
     Inc(IDStart);
-  for IDEnd := grActGrid.Row to LastRowAct do begin
-    if grActGrid.Cells[ColCode, IDEnd] = '' then begin
+  for IDEnd := grActGrid.Row to LastRowAct do
+  begin
+    if grActGrid.Cells[ColCode, IDEnd] = '' then
+    begin
       Break;
     end
     else if ((GetCode(grActGrid.Cells[ColCode, IDEnd]) = 1) and
-      (IDEnd > grActGrid.Row)) then begin
+      (IDEnd > grActGrid.Row)) then
+    begin
       Break;
     end;
   end;
   if IDEnd < LastRowAct then
     Dec(IDEnd);
   ActivityGroup.Clear;
-  for y := IDStart to IDEnd do begin
+  for y := IDStart to IDEnd do
+  begin
     grActGrid.Rows[y].Delimiter := #9;
     ActivityGroup.Add(grActGrid.Rows[y].CommaText);
   end;
@@ -9051,17 +10141,21 @@ begin
 end;
 
 procedure TfmMain.PasteActivityGroup;
-  var x, IDStart: Integer;
+var
+  x, IDStart: integer;
 begin
   // Paste activity group from ActivityGroup variable;
-  for IDStart := grActGrid.Row downto 1 do begin
-    if grActGrid.Cells[ColCode, IDStart] = '' then begin
+  for IDStart := grActGrid.Row downto 1 do
+  begin
+    if grActGrid.Cells[ColCode, IDStart] = '' then
+    begin
       Break;
     end
     else if GetCode(grActGrid.Cells[ColCode, IDStart]) = 1 then
       Break;
   end;
-  for x := ActivityGroup.Count - 1 downto 0 do begin
+  for x := ActivityGroup.Count - 1 downto 0 do
+  begin
     grActGrid.InsertColRow(False, IDStart);
     grActGrid.Rows[IDStart].Delimiter := #9;
     grActGrid.Rows[IDStart].CommaText := ActivityGroup[x];
@@ -9108,6 +10202,7 @@ var
   StateTodo, StateStarted, StateDone, CostValue: boolean;
   DateIni, DateEnd: TDateTime;
   Cost: currency;
+  stCost: string;
   MyIDList: TStringList;
 begin
   // Update main activity of the current one
@@ -9124,8 +10219,8 @@ begin
     begin
       if ActIndent = GetCode(grActGrid.Cells[ColCode, i]) then
         MyIDList.Add(IntToStr(i));
-      if ((grActGrid.Cells[ColCode, i] = '') or (ActIndent >
-        GetCode(grActGrid.Cells[ColCode, i]))) then
+      if ((grActGrid.Cells[ColCode, i] = '') or
+        (ActIndent > GetCode(grActGrid.Cells[ColCode, i]))) then
       begin
         IDTop := i;
         Break;
@@ -9136,8 +10231,8 @@ begin
     begin
       if ActIndent = GetCode(grActGrid.Cells[ColCode, i]) then
         MyIDList.Add(IntToStr(i));
-      if ((grActGrid.Cells[ColCode, i] = '') or (ActIndent >
-        GetCode(grActGrid.Cells[ColCode, i]))) then
+      if ((grActGrid.Cells[ColCode, i] = '') or
+        (ActIndent > GetCode(grActGrid.Cells[ColCode, i]))) then
         Break;
     end;
     // Update main activity
@@ -9150,6 +10245,7 @@ begin
     Priority := 0;
     IncPrior := 0;
     Cost := 0;
+    stCost := '';
     CostValue := False;
     for n := 0 to MyIDList.Count - 1 do
     begin
@@ -9193,7 +10289,9 @@ begin
       if grActGrid.Cells[ColCost, i] <> '' then
       begin
         CostValue := True;
-        Cost := Cost + StrToCurr(grActGrid.Cells[ColCost, i]);
+        stCost := grActGrid.Cells[ColCost, i];
+        stCost := StringReplace(stCost, ThousandSeparator, '', []);
+        Cost := Cost + StrToCurr(stCost);
       end;
     end;
   finally
@@ -9239,7 +10337,8 @@ begin
 end;
 
 procedure TfmMain.ShiftForwardActDates;
-  var i: Integer;
+var
+  i: integer;
 begin
   // Shift forward the dates of the activities
   for i := 1 to LastRowAct do
@@ -9247,22 +10346,24 @@ begin
     if grActGrid.Cells[ColStartDate, i] <> '' then
     begin
       grActGrid.Cells[ColStartDate, i] :=
-        DateTimeToStr(StrToDateTime(grActGrid.Cells[ColStartDate,
-        i], FDate) + 1, FDate);
+        DateTimeToStr(StrToDateTime(grActGrid.Cells[ColStartDate, i], FDate) +
+        1, FDate);
     end;
     if grActGrid.Cells[ColEndDate, i] <> '' then
     begin
       grActGrid.Cells[ColEndDate, i] :=
-        DateTimeToStr(StrToDateTime(grActGrid.Cells[ColEndDate,
-        i], FDate) + 1, FDate);
+        DateTimeToStr(StrToDateTime(grActGrid.Cells[ColEndDate, i], FDate) +
+        1, FDate);
     end;
   end;
   CalcActDates;
+  grActGrid.Refresh;
   EditNotesDataset;
 end;
 
 procedure TfmMain.ShiftBackwardActDates;
-  var i: Integer;
+var
+  i: integer;
 begin
   // Shift backward the dates of the activities
   for i := 1 to LastRowAct do
@@ -9270,17 +10371,18 @@ begin
     if grActGrid.Cells[ColStartDate, i] <> '' then
     begin
       grActGrid.Cells[ColStartDate, i] :=
-        DateTimeToStr(StrToDateTime(grActGrid.Cells[ColStartDate,
-        i], FDate) - 1, FDate);
+        DateTimeToStr(StrToDateTime(grActGrid.Cells[ColStartDate, i], FDate) -
+        1, FDate);
     end;
     if grActGrid.Cells[ColEndDate, i] <> '' then
     begin
       grActGrid.Cells[ColEndDate, i] :=
-        DateTimeToStr(StrToDateTime(grActGrid.Cells[ColEndDate,
-        i], FDate) - 1, FDate);
+        DateTimeToStr(StrToDateTime(grActGrid.Cells[ColEndDate, i], FDate) -
+        1, FDate);
     end;
   end;
   CalcActDates;
+  grActGrid.Refresh;
   EditNotesDataset;
 end;
 
@@ -9302,8 +10404,9 @@ begin
     Result := Copy(CellVal, 1, 1);
 end;
 
-function TfmMain.ConvertDateFormat(Data, FileFormat, SftFormat: String): String;
-  var YMD, MDY, DMY: TFormatSettings;
+function TfmMain.ConvertDateFormat(Data, FileFormat, SftFormat: string): string;
+var
+  YMD, MDY, DMY: TFormatSettings;
 begin
   // Convert among different date format
   YMD := DefaultFormatSettings;
@@ -9336,33 +10439,35 @@ begin
 end;
 
 procedure TfmMain.CalcActDates;
-  var dtStartDate, dtActStartDate, dtEndDate, dtActEndDate: TDate;
-    stStartDate, stEndDate: String;
-    i: Integer;
+var
+  dtStartDate, dtActStartDate, dtEndDate, dtActEndDate: TDate;
+  stStartDate, stEndDate: string;
+  i: integer;
 begin
   dtStartDate := 10000000;
   dtEndDate := 0;
   // Calculate the start and end date of the project
   for i := 1 to LastRowAct do
-  try
-    if grActGrid.Cells[ColStartDate, i] <> '' then
-    begin
-      if TryStrToDate(grActGrid.Cells[ColStartDate, i], dtActStartDate, FDate) = True then
+    try
+      if grActGrid.Cells[ColStartDate, i] <> '' then
       begin
-        if dtActStartDate < dtStartDate then
-          dtStartDate := dtActStartDate;
+        if TryStrToDate(grActGrid.Cells[ColStartDate, i], dtActStartDate,
+          FDate) = True then
+        begin
+          if dtActStartDate < dtStartDate then
+            dtStartDate := dtActStartDate;
+        end;
       end;
-    end;
-    if grActGrid.Cells[ColEndDate, i] <> '' then
-    begin
-      if TryStrToDate(grActGrid.Cells[ColEndDate, i], dtActEndDate, FDate) = True then
+      if grActGrid.Cells[ColEndDate, i] <> '' then
       begin
-        if dtActEndDate > dtEndDate then
-          dtEndDate := dtActEndDate;
+        if TryStrToDate(grActGrid.Cells[ColEndDate, i], dtActEndDate, FDate) = True then
+        begin
+          if dtActEndDate > dtEndDate then
+            dtEndDate := dtActEndDate;
+        end;
       end;
+    except;
     end;
-  except;
-  end;
   stStartDate := '';
   stEndDate := '';
   if dtStartDate < 10000000 then
@@ -9375,8 +10480,8 @@ begin
     if stEndDate = '' then
       lbActDates.Caption := cpt091 + ' ' + stStartDate + '.'
     else
-      lbActDates.Caption := cpt091 + ' ' + stStartDate +
-        ' ' + cpt092 +' ' + stEndDate + '.';
+      lbActDates.Caption := cpt091 + ' ' + stStartDate + ' ' +
+        cpt092 + ' ' + stEndDate + '.';
   end
   else if stEndDate <> '' then
     lbActDates.Caption := cpt093 + ' ' + stEndDate + '.'
@@ -9384,12 +10489,37 @@ begin
     lbActDates.Caption := cpt094 + '.';
 end;
 
+procedure TfmMain.StoreUndoData;
+begin
+  // Store note text for possible undo
+  iNoteTextPos := dbText.SelStart;
+  dbText.GetUndo(iNoteTextPos);
+  miNotesUndo.Enabled := True;
+end;
+
+procedure TfmMain.GetUndoData;
+begin
+  // Replace current note text with the one stored for undo
+  dbText.SetUndo(iNoteTextPos);
+  // To avoid the cursor go to the bottom
+  dbText.SetCursorMiddleScreen(dbText.CaretPos.Y);
+end;
+
+procedure TfmMain.ClearUndoData;
+begin
+  // Clear stored undo data of current note text
+  iNoteTextPos := 0;
+  dbText.ClearUndo;
+  miNotesUndo.Enabled := False;
+end;
+
 // *****************************************************************************
 // ************************* COMMON SYNC PROCEDURES ****************************
 // *****************************************************************************
 
-procedure TfmMain.SyncDelRec(ReadFile, WriteFile: String);
-  var sqSyncRead, sqSyncWrite: TSqlite3Dataset;
+procedure TfmMain.SyncDelRec(ReadFile, WriteFile: string);
+var
+  sqSyncRead, sqSyncWrite: TSqlite3Dataset;
 begin
   // Purge and sync table DelRec
   try
@@ -9406,21 +10536,26 @@ begin
     sqSyncWrite.AutoIncrementKey := True;
     sqSyncWrite.Open;
     // Purge from records older than DelayDays days
-    while not sqSyncRead.EOF do begin
-      if sqSyncRead.FieldByName('DelRecDTMod').AsDateTime < Now - DelayDays then begin
+    while not sqSyncRead.EOF do
+    begin
+      if sqSyncRead.FieldByName('DelRecDTMod').AsDateTime < Now - DelayDays then
+      begin
         sqSyncRead.Delete;
         sqSyncRead.ApplyUpdates;
       end
-    else begin
-      sqSyncRead.Next
-    end;
-    Application.ProcessMessages;
+      else
+      begin
+        sqSyncRead.Next;
+      end;
+      Application.ProcessMessages;
     end;
     // Sync
     sqSyncRead.First;
-    while not sqSyncRead.EOF do begin
-      if sqSyncWrite.Locate('DelRecUID',
-        sqSyncRead.FieldByName('DelRecUID').AsString, []) = False then begin
+    while not sqSyncRead.EOF do
+    begin
+      if sqSyncWrite.Locate('DelRecUID', sqSyncRead.FieldByName(
+        'DelRecUID').AsString, []) = False then
+      begin
         sqSyncWrite.Append;
         sqSyncWrite.FieldByName('DelRecUID').AsString :=
           sqSyncRead.FieldByName('DelRecUID').AsString;
@@ -9438,10 +10573,11 @@ begin
   end;
 end;
 
-function TfmMain.SyncDelSubjectsNotes(ReadFile, WriteFile: String): Integer;
-  var DelRecords, i: Integer;
+function TfmMain.SyncDelSubjectsNotes(ReadFile, WriteFile: string): integer;
+var
+  DelRecords, i: integer;
   sqSyncRead, sqSyncWrite: TSqlite3Dataset;
-  AttDir: String;
+  AttDir: string;
   myStringList: TStringList;
 begin
   try
@@ -9459,98 +10595,109 @@ begin
     sqSyncWrite.PrimaryKey := 'IDNotes';
     sqSyncWrite.AutoIncrementKey := True;
     sqSyncWrite.Open;
-  while not sqSyncWrite.EOF do begin
-    if sqSyncRead.Locate('DelRecUID',
-      sqSyncWrite.FieldByName('NotesUID').AsString, []) = True then begin
-      // Delete attachment
-      if sqSyncWrite.FieldByName('NotesAttName').AsString <> '' then try
-        AttDir := ExtractFileNameWithoutExt(sqSyncWrite.FileName);
-        if DirectoryExistsUTF8(AttDir) = False then begin
-          MessageDlg(msg030, mtWarning, [mbOK], 0);
-          Abort;
-        end;
-        myStringList := TStringList.Create;
-        myStringList.Text := sqSyncWrite.FieldByName('NotesAttName').AsString;
-        for i := 0 to myStringList.Count - 1 do
-          DeleteFileUTF8(AttDir + DirectorySeparator +
-             sqSyncWrite.FieldByName('NotesUID').AsString +
-            '-' + ExtractFileNameOnly(myStringList[i]) + '.zip');
-        myStringList.Free;
-        if fmMain.IsDirectoryEmpty(AttDir) = True then
-          DeleteDirectory(AttDir, False);
-      except
-        MessageDlg(msg035, mtWarning, [mbOK], 0);
-        Abort;
-      end;
-      // Delete images
-      AttDir := ExtractFileNameWithoutExt(sqSyncWrite.FileName);
-      if DirectoryExistsUTF8(AttDir) = True then begin
-        i := 0;
-        try
-          while FileExistsUTF8(AttDir + DirectorySeparator +
-            sqSyncWrite.FieldByName('NotesUID').AsString +
-            '-img' + FormatFloat('0000', i) + '.jpeg') = True do begin
+    while not sqSyncWrite.EOF do
+    begin
+      if sqSyncRead.Locate('DelRecUID', sqSyncWrite.FieldByName('NotesUID').AsString,
+        []) = True then
+      begin
+        // Delete attachment
+        if sqSyncWrite.FieldByName('NotesAttName').AsString <> '' then
+          try
+            AttDir := ExtractFileNameWithoutExt(sqSyncWrite.FileName);
+            if DirectoryExistsUTF8(AttDir) = False then
+            begin
+              MessageDlg(msg030, mtWarning, [mbOK], 0);
+              Abort;
+            end;
+            myStringList := TStringList.Create;
+            myStringList.Text := sqSyncWrite.FieldByName('NotesAttName').AsString;
+            for i := 0 to myStringList.Count - 1 do
               DeleteFileUTF8(AttDir + DirectorySeparator +
-                 sqSyncWrite.FieldByName('NotesUID').AsString +
+                sqSyncWrite.FieldByName('NotesUID').AsString + '-' +
+                ExtractFileNameOnly(myStringList[i]) + '.zip');
+            myStringList.Free;
+            if fmMain.IsDirectoryEmpty(AttDir) = True then
+              DeleteDirectory(AttDir, False);
+          except
+            MessageDlg(msg035, mtWarning, [mbOK], 0);
+            Abort;
+          end;
+        // Delete images
+        AttDir := ExtractFileNameWithoutExt(sqSyncWrite.FileName);
+        if DirectoryExistsUTF8(AttDir) = True then
+        begin
+          i := 0;
+          try
+            while FileExistsUTF8(AttDir + DirectorySeparator +
+                sqSyncWrite.FieldByName('NotesUID').AsString + '-img' +
+                FormatFloat('0000', i) + '.jpeg') = True do
+            begin
+              DeleteFileUTF8(AttDir + DirectorySeparator +
+                sqSyncWrite.FieldByName('NotesUID').AsString +
                 '-img' + FormatFloat('0000', i) + '.jpeg');
               Inc(i);
+            end;
+            if IsDirectoryEmpty(AttDir) = True then
+              DeleteDirectory(AttDir, False);
+          except
+            MessageDlg(msg035, mtWarning, [mbOK], 0);
+            Abort;
           end;
-          if IsDirectoryEmpty(AttDir) = True then
-            DeleteDirectory(AttDir, False);
-        except
-          MessageDlg(msg035, mtWarning, [mbOK], 0);
-          Abort;
         end;
+        sqSyncWrite.Delete;
+        sqSyncWrite.ApplyUpdates;
+        Inc(DelRecords);
+      end
+      else
+      begin
+        sqSyncWrite.Next;
       end;
-      sqSyncWrite.Delete;
-      sqSyncWrite.ApplyUpdates;
-      Inc(DelRecords);
-    end
-    else begin
-      sqSyncWrite.Next
+      Application.ProcessMessages;
     end;
-    Application.ProcessMessages;
-  end;
-  sqSyncWrite.Free;
+    sqSyncWrite.Free;
     // Delete Subjects in DelRec
-  sqSyncWrite := TSqlite3Dataset.Create(Self);
-  sqSyncWrite.FileName := WriteFile;
-  sqSyncWrite.AutoIncrementKey := True;
-  sqSyncWrite.TableName := 'Subjects';
-  sqSyncWrite.PrimaryKey := 'IDSubjects';
-  sqSyncWrite.Open;
-  while not sqSyncWrite.EOF do begin
-    if sqSyncRead.Locate('DelRecUID',
-      sqSyncWrite.FieldByName('SubjectsUID').AsString, []) = True then begin
-      sqSyncWrite.Delete;
-      sqSyncWrite.ApplyUpdates;
-      Inc(DelRecords);
-    end
-    else begin
-      sqSyncWrite.Next
+    sqSyncWrite := TSqlite3Dataset.Create(Self);
+    sqSyncWrite.FileName := WriteFile;
+    sqSyncWrite.AutoIncrementKey := True;
+    sqSyncWrite.TableName := 'Subjects';
+    sqSyncWrite.PrimaryKey := 'IDSubjects';
+    sqSyncWrite.Open;
+    while not sqSyncWrite.EOF do
+    begin
+      if sqSyncRead.Locate('DelRecUID', sqSyncWrite.FieldByName(
+        'SubjectsUID').AsString, []) = True then
+      begin
+        sqSyncWrite.Delete;
+        sqSyncWrite.ApplyUpdates;
+        Inc(DelRecords);
+      end
+      else
+      begin
+        sqSyncWrite.Next;
+      end;
+      Application.ProcessMessages;
     end;
-    Application.ProcessMessages;
-  end;
-  Result := DelRecords;
+    Result := DelRecords;
   finally
     sqSyncRead.Free;
     sqSyncWrite.Free;
   end;
 end;
 
-function TfmMain.SyncUpdateSubjectsNotes(ReadFile, WriteFile: String): Integer;
-  var ChnRecords, i: Integer;
+function TfmMain.SyncUpdateSubjectsNotes(ReadFile, WriteFile: string): integer;
+var
+  ChnRecords, i: integer;
   sqSyncRead, sqSyncWrite, sqCheckIDSubjects: TSqlite3Dataset;
-  AttReadDir, AttWriteDir: String;
+  AttReadDir, AttWriteDir: string;
   myStringList: TStringList;
 begin
   if DirectoryExistsUTF8(ExtractFileNameWithoutExt(ReadFile)) = True then
-  try
-    if DirectoryExistsUTF8(ExtractFileNameWithoutExt(WriteFile)) = False then
-      CreateDirUTF8(ExtractFileNameWithoutExt(WriteFile));
-  except
-    MessageDlg(msg030, mtWarning, [mbOK], 0);
-  end;
+    try
+      if DirectoryExistsUTF8(ExtractFileNameWithoutExt(WriteFile)) = False then
+        CreateDirUTF8(ExtractFileNameWithoutExt(WriteFile));
+    except
+      MessageDlg(msg030, mtWarning, [mbOK], 0);
+    end;
   // Sync subjects
   ChnRecords := 0;
   try
@@ -9566,10 +10713,12 @@ begin
     sqSyncWrite.PrimaryKey := 'IDSubjects';
     sqSyncWrite.AutoIncrementKey := True;
     sqSyncWrite.Open;
-    while not sqSyncRead.EOF do begin
+    while not sqSyncRead.EOF do
+    begin
       // Subject not present: add it
-      if sqSyncWrite.Locate('SubjectsUID',
-        sqSyncRead.FieldByName('SubjectsUID').AsString, []) = False then begin
+      if sqSyncWrite.Locate('SubjectsUID', sqSyncRead.FieldByName(
+        'SubjectsUID').AsString, []) = False then
+      begin
         sqSyncWrite.Append;
         sqSyncWrite.FieldByName('SubjectsName').AsString :=
           sqSyncRead.FieldByName('SubjectsName').AsString;
@@ -9591,7 +10740,8 @@ begin
       end
       // Subject present: check date
       else if sqSyncRead.FieldByName('SubjectsDTMod').AsDateTime >
-        sqSyncWrite.FieldByName('SubjectsDTMod').AsDateTime then begin
+        sqSyncWrite.FieldByName('SubjectsDTMod').AsDateTime then
+      begin
         sqSyncWrite.Edit;
         sqSyncWrite.FieldByName('SubjectsName').AsString :=
           sqSyncRead.FieldByName('SubjectsName').AsString;
@@ -9642,17 +10792,21 @@ begin
     sqCheckIDSubjects.PrimaryKey := 'IDSubjects';
     sqCheckIDSubjects.AutoIncrementKey := True;
     sqCheckIDSubjects.Open;
-    while not sqSyncRead.EOF do begin
+    while not sqSyncRead.EOF do
+    begin
       // Note not present: add it
-      if sqSyncWrite.Locate('NotesUID',
-        sqSyncRead.FieldByName('NotesUID').AsString, []) = False then begin
+      if sqSyncWrite.Locate('NotesUID', sqSyncRead.FieldByName(
+        'NotesUID').AsString, []) = False then
+      begin
         sqCheckIDSubjects.Locate('SubjectsUID',
           sqSyncRead.FieldByName('SubjectsUID').AsString, []);
         // Delete attachments in the writer directory:
         // they will be copied from reader directory
-        if sqSyncWrite.FieldByName('NotesAttName').AsString <> '' then begin
+        if sqSyncWrite.FieldByName('NotesAttName').AsString <> '' then
+        begin
           AttWriteDir := ExtractFileNameWithoutExt(sqSyncWrite.FileName);
-          if DirectoryExistsUTF8(AttWriteDir) = False then begin
+          if DirectoryExistsUTF8(AttWriteDir) = False then
+          begin
             MessageDlg(msg030, mtWarning, [mbOK], 0);
             Abort;
           end;
@@ -9660,7 +10814,7 @@ begin
           myStringList.Text := sqSyncWrite.FieldByName('NotesAttName').AsString;
           for i := 0 to myStringList.Count - 1 do
             DeleteFileUTF8(AttWriteDir + DirectorySeparator +
-               sqSyncWrite.FieldByName('NotesUID').AsString +
+              sqSyncWrite.FieldByName('NotesUID').AsString +
               '-' + ExtractFileNameOnly(myStringList[i]) + '.zip');
           myStringList.Free;
           if IsDirectoryEmpty(AttWriteDir) = True then
@@ -9669,16 +10823,18 @@ begin
         // Delete images in the writer directory:
         // they will be copied from reader directory
         AttWriteDir := ExtractFileNameWithoutExt(sqSyncWrite.FileName);
-        if DirectoryExistsUTF8(AttWriteDir) = True then begin
+        if DirectoryExistsUTF8(AttWriteDir) = True then
+        begin
           i := 0;
           try
             while FileExistsUTF8(AttWriteDir + DirectorySeparator +
-              sqSyncWrite.FieldByName('NotesUID').AsString +
-              '-img' + FormatFloat('0000', i) + '.jpeg') = True do begin
-                DeleteFileUTF8(AttWriteDir + DirectorySeparator +
-                   sqSyncWrite.FieldByName('NotesUID').AsString +
-                  '-img' + FormatFloat('0000', i) + '.jpeg');
-                Inc(i);
+                sqSyncWrite.FieldByName('NotesUID').AsString +
+                '-img' + FormatFloat('0000', i) + '.jpeg') = True do
+            begin
+              DeleteFileUTF8(AttWriteDir + DirectorySeparator +
+                sqSyncWrite.FieldByName('NotesUID').AsString +
+                '-img' + FormatFloat('0000', i) + '.jpeg');
+              Inc(i);
             end;
             if IsDirectoryEmpty(AttWriteDir) = True then
               DeleteDirectory(AttWriteDir, False);
@@ -9719,20 +10875,23 @@ begin
         sqSyncWrite.Post;
         sqSyncWrite.ApplyUpdates;
         // Copy attachments
-        if sqSyncRead.FieldByName('NotesAttName').AsString <> '' then begin
+        if sqSyncRead.FieldByName('NotesAttName').AsString <> '' then
+        begin
           AttReadDir := ExtractFileNameWithoutExt(sqSyncRead.FileName);
-          if DirectoryExistsUTF8(AttReadDir) = False then begin
+          if DirectoryExistsUTF8(AttReadDir) = False then
+          begin
             MessageDlg(msg030, mtWarning, [mbOK], 0);
             Abort;
           end;
           AttWriteDir := ExtractFileNameWithoutExt(sqSyncWrite.FileName);
-          if DirectoryExistsUTF8(AttWriteDir) = False then try
-            CreateDirUTF8(AttWriteDir);
-          except
-            MessageDlg(msg029, mtWarning, [mbOk], 0);
-            Screen.Cursor := crDefault;
-            Abort;
-          end;
+          if DirectoryExistsUTF8(AttWriteDir) = False then
+            try
+              CreateDirUTF8(AttWriteDir);
+            except
+              MessageDlg(msg029, mtWarning, [mbOK], 0);
+              Screen.Cursor := crDefault;
+              Abort;
+            end;
           myStringList := TStringList.Create;
           myStringList.Text := sqSyncRead.FieldByName('NotesAttName').AsString;
           for i := 0 to myStringList.Count - 1 do
@@ -9749,27 +10908,30 @@ begin
         end;
         // Copy images
         AttReadDir := ExtractFileNameWithoutExt(sqSyncRead.FileName);
-        if DirectoryExistsUTF8(AttReadDir) = True then begin
+        if DirectoryExistsUTF8(AttReadDir) = True then
+        begin
           AttWriteDir := ExtractFileNameWithoutExt(sqSyncWrite.FileName);
-          if DirectoryExistsUTF8(AttWriteDir) = False then try
-            CreateDirUTF8(AttWriteDir);
-          except
-            MessageDlg(msg029, mtWarning, [mbOk], 0);
-            Screen.Cursor := crDefault;
-            Abort;
-          end;
+          if DirectoryExistsUTF8(AttWriteDir) = False then
+            try
+              CreateDirUTF8(AttWriteDir);
+            except
+              MessageDlg(msg029, mtWarning, [mbOK], 0);
+              Screen.Cursor := crDefault;
+              Abort;
+            end;
           i := 0;
           try
             while FileExistsUTF8(AttReadDir + DirectorySeparator +
-              sqSyncRead.FieldByName('NotesUID').AsString +
-              '-img' + FormatFloat('0000', i) + '.jpeg') = True do begin
-                CopyFile(AttReadDir + DirectorySeparator +
-                  sqSyncRead.FieldByName('NotesUID').AsString +
-                  '-img' + FormatFloat('0000', i) + '.jpeg',
-                  AttWriteDir + DirectorySeparator +
-                  sqSyncWrite.FieldByName('NotesUID').AsString +
-                  '-img' + FormatFloat('0000', i) + '.jpeg');
-                Inc(i);
+                sqSyncRead.FieldByName('NotesUID').AsString +
+                '-img' + FormatFloat('0000', i) + '.jpeg') = True do
+            begin
+              CopyFile(AttReadDir + DirectorySeparator +
+                sqSyncRead.FieldByName('NotesUID').AsString +
+                '-img' + FormatFloat('0000', i) + '.jpeg',
+                AttWriteDir + DirectorySeparator +
+                sqSyncWrite.FieldByName('NotesUID').AsString +
+                '-img' + FormatFloat('0000', i) + '.jpeg');
+              Inc(i);
             end;
           except
             MessageDlg(msg035, mtWarning, [mbOK], 0);
@@ -9780,12 +10942,15 @@ begin
       end
       // Note present: check date
       else if sqSyncRead.FieldByName('NotesDTMod').AsDateTime >
-        sqSyncWrite.FieldByName('NotesDTMod').AsDateTime then begin
+        sqSyncWrite.FieldByName('NotesDTMod').AsDateTime then
+      begin
         // Delete attachments in the writer directory:
         // they will be copied from reader directory
-        if sqSyncWrite.FieldByName('NotesAttName').AsString <> '' then begin
+        if sqSyncWrite.FieldByName('NotesAttName').AsString <> '' then
+        begin
           AttWriteDir := ExtractFileNameWithoutExt(sqSyncWrite.FileName);
-          if DirectoryExistsUTF8(AttWriteDir) = False then begin
+          if DirectoryExistsUTF8(AttWriteDir) = False then
+          begin
             MessageDlg(msg030, mtWarning, [mbOK], 0);
             Abort;
           end;
@@ -9793,7 +10958,7 @@ begin
           myStringList.Text := sqSyncWrite.FieldByName('NotesAttName').AsString;
           for i := 0 to myStringList.Count - 1 do
             DeleteFileUTF8(AttWriteDir + DirectorySeparator +
-               sqSyncWrite.FieldByName('NotesUID').AsString +
+              sqSyncWrite.FieldByName('NotesUID').AsString +
               '-' + ExtractFileNameOnly(myStringList[i]) + '.zip');
           myStringList.Free;
           if IsDirectoryEmpty(AttWriteDir) = True then
@@ -9802,16 +10967,18 @@ begin
         // Delete images in the writer directory:
         // they will be copied from reader directory
         AttWriteDir := ExtractFileNameWithoutExt(sqSyncWrite.FileName);
-        if DirectoryExistsUTF8(AttWriteDir) = True then begin
+        if DirectoryExistsUTF8(AttWriteDir) = True then
+        begin
           i := 0;
           try
             while FileExistsUTF8(AttWriteDir + DirectorySeparator +
-              sqSyncWrite.FieldByName('NotesUID').AsString +
-              '-img' + FormatFloat('0000', i) + '.jpeg') = True do begin
-                DeleteFileUTF8(AttWriteDir + DirectorySeparator +
-                   sqSyncWrite.FieldByName('NotesUID').AsString +
-                  '-img' + FormatFloat('0000', i) + '.jpeg');
-                Inc(i);
+                sqSyncWrite.FieldByName('NotesUID').AsString +
+                '-img' + FormatFloat('0000', i) + '.jpeg') = True do
+            begin
+              DeleteFileUTF8(AttWriteDir + DirectorySeparator +
+                sqSyncWrite.FieldByName('NotesUID').AsString +
+                '-img' + FormatFloat('0000', i) + '.jpeg');
+              Inc(i);
             end;
             if IsDirectoryEmpty(AttWriteDir) = True then
               DeleteDirectory(AttWriteDir, False);
@@ -9846,20 +11013,23 @@ begin
         sqSyncWrite.Post;
         sqSyncWrite.ApplyUpdates;
         // Copy attachments
-        if sqSyncRead.FieldByName('NotesAttName').AsString <> '' then begin
+        if sqSyncRead.FieldByName('NotesAttName').AsString <> '' then
+        begin
           AttReadDir := ExtractFileNameWithoutExt(sqSyncRead.FileName);
-          if DirectoryExistsUTF8(AttReadDir) = False then begin
+          if DirectoryExistsUTF8(AttReadDir) = False then
+          begin
             MessageDlg(msg030, mtWarning, [mbOK], 0);
             Abort;
           end;
           AttWriteDir := ExtractFileNameWithoutExt(sqSyncWrite.FileName);
-          if DirectoryExistsUTF8(AttWriteDir) = False then try
-            CreateDirUTF8(AttWriteDir);
-          except
-            MessageDlg(msg029, mtWarning, [mbOk], 0);
-            Screen.Cursor := crDefault;
-            Abort;
-          end;
+          if DirectoryExistsUTF8(AttWriteDir) = False then
+            try
+              CreateDirUTF8(AttWriteDir);
+            except
+              MessageDlg(msg029, mtWarning, [mbOK], 0);
+              Screen.Cursor := crDefault;
+              Abort;
+            end;
           myStringList := TStringList.Create;
           myStringList.Text := sqSyncRead.FieldByName('NotesAttName').AsString;
           for i := 0 to myStringList.Count - 1 do
@@ -9876,27 +11046,30 @@ begin
         end;
         // Copy images
         AttReadDir := ExtractFileNameWithoutExt(sqSyncRead.FileName);
-        if DirectoryExistsUTF8(AttReadDir) = True then begin
+        if DirectoryExistsUTF8(AttReadDir) = True then
+        begin
           AttWriteDir := ExtractFileNameWithoutExt(sqSyncWrite.FileName);
-          if DirectoryExistsUTF8(AttWriteDir) = False then try
-            CreateDirUTF8(AttWriteDir);
-          except
-            MessageDlg(msg029, mtWarning, [mbOk], 0);
-            Screen.Cursor := crDefault;
-            Abort;
-          end;
+          if DirectoryExistsUTF8(AttWriteDir) = False then
+            try
+              CreateDirUTF8(AttWriteDir);
+            except
+              MessageDlg(msg029, mtWarning, [mbOK], 0);
+              Screen.Cursor := crDefault;
+              Abort;
+            end;
           i := 0;
           try
             while FileExistsUTF8(AttReadDir + DirectorySeparator +
-              sqSyncRead.FieldByName('NotesUID').AsString +
-              '-img' + FormatFloat('0000', i) + '.jpeg') = True do begin
-                CopyFile(AttReadDir + DirectorySeparator +
-                  sqSyncRead.FieldByName('NotesUID').AsString +
-                  '-img' + FormatFloat('0000', i) + '.jpeg',
-                  AttWriteDir + DirectorySeparator +
-                  sqSyncWrite.FieldByName('NotesUID').AsString +
-                  '-img' + FormatFloat('0000', i) + '.jpeg');
-                Inc(i);
+                sqSyncRead.FieldByName('NotesUID').AsString +
+                '-img' + FormatFloat('0000', i) + '.jpeg') = True do
+            begin
+              CopyFile(AttReadDir + DirectorySeparator +
+                sqSyncRead.FieldByName('NotesUID').AsString +
+                '-img' + FormatFloat('0000', i) + '.jpeg',
+                AttWriteDir + DirectorySeparator +
+                sqSyncWrite.FieldByName('NotesUID').AsString +
+                '-img' + FormatFloat('0000', i) + '.jpeg');
+              Inc(i);
             end;
           except
             MessageDlg(msg035, mtWarning, [mbOK], 0);
@@ -9921,453 +11094,491 @@ end;
 // *****************************************************************************
 
 procedure TfmMain.Translation;
-  Var MyIni: TIniFile;
-  myHomeDir: String;
+var
+  MyIni: TIniFile;
+  myHomeDir: string;
 begin
   // Set home directory and data directories
   myHomeDir := GetEnvironmentVariable('HOME') + '/.config';
   // Copy file if existing in installation directory;
   // Directory mynotex has been already created
   if FileExistsUTF8(myHomeDir + DirectorySeparator + 'mynotex' +
-    DirectorySeparator + 'translation-' + VersMyNt) = False then try
-    if FileExistsUTF8(InstallDir +
-      LowerCase(Copy(GetEnvironmentVariable('LANG'), 1, 2)) + '.lng') then begin
-        CopyFile(InstallDir +
-          LowerCase(Copy(GetEnvironmentVariable('LANG'), 1, 2) + '.lng'),
-          myHomeDir + DirectorySeparator + 'mynotex' +
-          DirectorySeparator + 'translation-' + VersMyNt);
+    DirectorySeparator + 'translation-' + VersMyNt) = False then
+    try
+      if FileExistsUTF8(InstallDir +
+        LowerCase(Copy(GetEnvironmentVariable('LANG'), 1, 2)) + '.lng') then
+      begin
+        CopyFile(InstallDir + LowerCase(
+          Copy(GetEnvironmentVariable('LANG'), 1, 2) + '.lng'),
+          myHomeDir + DirectorySeparator + 'mynotex' + DirectorySeparator +
+          'translation-' + VersMyNt);
       end;
-  except;
-  end;
+    except;
+    end;
   // Load translation file if existing
   if FileExistsUTF8(myHomeDir + DirectorySeparator + 'mynotex' +
-    DirectorySeparator + 'translation-' + VersMyNt) then begin
+    DirectorySeparator + 'translation-' + VersMyNt) then
+  begin
     MyIni := TIniFile.Create(myHomeDir + DirectorySeparator + 'mynotex' +
       DirectorySeparator + 'translation-' + VersMyNt);
     try
       // Messages dialogs
-      msg001 := MyIni.ReadString('mynotex','msg001','');
-      msg002 := MyIni.ReadString('mynotex','msg002','');
-      msg003 := MyIni.ReadString('mynotex','msg003','');
-      msg004 := MyIni.ReadString('mynotex','msg004','');
-      msg005 := MyIni.ReadString('mynotex','msg005','');
-      msg006 := MyIni.ReadString('mynotex','msg006','');
-      msg007 := MyIni.ReadString('mynotex','msg007','');
-      msg008 := MyIni.ReadString('mynotex','msg008','');
-      msg009 := MyIni.ReadString('mynotex','msg009','');
-      msg010 := MyIni.ReadString('mynotex','msg010','');
-      msg011 := MyIni.ReadString('mynotex','msg011','');
-      msg012 := MyIni.ReadString('mynotex','msg012','');
-      msg013 := MyIni.ReadString('mynotex','msg013','');
-      msg014 := MyIni.ReadString('mynotex','msg014','');
-      msg015 := MyIni.ReadString('mynotex','msg015','');
-      msg016 := MyIni.ReadString('mynotex','msg016','');
-      msg017 := MyIni.ReadString('mynotex','msg017','');
-      msg018 := MyIni.ReadString('mynotex','msg018','');
-      msg019 := MyIni.ReadString('mynotex','msg019','');
-      msg020 := MyIni.ReadString('mynotex','msg020','');
-      msg021 := MyIni.ReadString('mynotex','msg021','');
-      msg022 := MyIni.ReadString('mynotex','msg022','');
-      msg023 := MyIni.ReadString('mynotex','msg023','');
-      msg024 := MyIni.ReadString('mynotex','msg024','');
-      msg025 := MyIni.ReadString('mynotex','msg025','');
-      msg026 := MyIni.ReadString('mynotex','msg026','');
-      msg027 := MyIni.ReadString('mynotex','msg027','');
-      msg028 := MyIni.ReadString('mynotex','msg028','');
-      msg029 := MyIni.ReadString('mynotex','msg029','');
-      msg030 := MyIni.ReadString('mynotex','msg030','');
-      msg031 := MyIni.ReadString('mynotex','msg031','');
-      msg032 := MyIni.ReadString('mynotex','msg032','');
-      msg033 := MyIni.ReadString('mynotex','msg033','');
-      msg034 := MyIni.ReadString('mynotex','msg034','');
-      msg035 := MyIni.ReadString('mynotex','msg035','');
-      msg036 := MyIni.ReadString('mynotex','msg036','');
-      msg037 := MyIni.ReadString('mynotex','msg037','');
-      msg038 := MyIni.ReadString('mynotex','msg038','');
-      msg039 := MyIni.ReadString('mynotex','msg039','');
-      msg040 := MyIni.ReadString('mynotex','msg040','');
-      msg041 := MyIni.ReadString('mynotex','msg041','');
-      msg042 := MyIni.ReadString('mynotex','msg042','');
-      msg043 := MyIni.ReadString('mynotex','msg043','');
-      msg044 := MyIni.ReadString('mynotex','msg044','');
-      msg045 := MyIni.ReadString('mynotex','msg045','');
-      msg046 := MyIni.ReadString('mynotex','msg046','');
-      msg047 := MyIni.ReadString('mynotex','msg047','');
-      msg048 := MyIni.ReadString('mynotex','msg048','');
-      msg049 := MyIni.ReadString('mynotex','msg049','');
-      msg050 := MyIni.ReadString('mynotex','msg050','');
-      msg051 := MyIni.ReadString('mynotex','msg051','');
-      msg052 := MyIni.ReadString('mynotex','msg052','');
-      msg053 := MyIni.ReadString('mynotex','msg053','');
-      msg054 := MyIni.ReadString('mynotex','msg054','');
-      msg055 := MyIni.ReadString('mynotex','msg055','');
-      msg056 := MyIni.ReadString('mynotex','msg056','');
-      msg057 := MyIni.ReadString('mynotex','msg057','');
-      msg058 := MyIni.ReadString('mynotex','msg058','');
-      msg059 := MyIni.ReadString('mynotex','msg059','');
-      msg060 := MyIni.ReadString('mynotex','msg060','');
-      msg061 := MyIni.ReadString('mynotex','msg061','');
-      msg062 := MyIni.ReadString('mynotex','msg062','');
-      msg063 := MyIni.ReadString('mynotex','msg063','');
-      msg064 := MyIni.ReadString('mynotex','msg064','');
-      msg065 := MyIni.ReadString('mynotex','msg065','');
-      msg066 := MyIni.ReadString('mynotex','msg066','');
-      msg067 := MyIni.ReadString('mynotex','msg067','');
-      msg068 := MyIni.ReadString('mynotex','msg068','');
-      msg069 := MyIni.ReadString('mynotex','msg069','');
-      msg070 := MyIni.ReadString('mynotex','msg070','');
-      msg071 := MyIni.ReadString('mynotex','msg071','');
-      msg072 := MyIni.ReadString('mynotex','msg072','');
-      msg073 := MyIni.ReadString('mynotex','msg073','');
-      msg074 := MyIni.ReadString('mynotex','msg074','');
-      msg075 := MyIni.ReadString('mynotex','msg075','');
-      msg076 := MyIni.ReadString('mynotex','msg076','');
-      msg077 := MyIni.ReadString('mynotex','msg077','');
-      msg078 := MyIni.ReadString('mynotex','msg078','');
-      msg079 := MyIni.ReadString('mynotex','msg079','');
-      msg080 := MyIni.ReadString('mynotex','msg080','');
+      msg001 := MyIni.ReadString('mynotex', 'msg001', '');
+      msg002 := MyIni.ReadString('mynotex', 'msg002', '');
+      msg003 := MyIni.ReadString('mynotex', 'msg003', '');
+      msg004 := MyIni.ReadString('mynotex', 'msg004', '');
+      msg005 := MyIni.ReadString('mynotex', 'msg005', '');
+      msg006 := MyIni.ReadString('mynotex', 'msg006', '');
+      msg007 := MyIni.ReadString('mynotex', 'msg007', '');
+      msg008 := MyIni.ReadString('mynotex', 'msg008', '');
+      msg009 := MyIni.ReadString('mynotex', 'msg009', '');
+      msg010 := MyIni.ReadString('mynotex', 'msg010', '');
+      msg011 := MyIni.ReadString('mynotex', 'msg011', '');
+      msg012 := MyIni.ReadString('mynotex', 'msg012', '');
+      msg013 := MyIni.ReadString('mynotex', 'msg013', '');
+      msg014 := MyIni.ReadString('mynotex', 'msg014', '');
+      msg015 := MyIni.ReadString('mynotex', 'msg015', '');
+      msg016 := MyIni.ReadString('mynotex', 'msg016', '');
+      msg017 := MyIni.ReadString('mynotex', 'msg017', '');
+      msg018 := MyIni.ReadString('mynotex', 'msg018', '');
+      msg019 := MyIni.ReadString('mynotex', 'msg019', '');
+      msg020 := MyIni.ReadString('mynotex', 'msg020', '');
+      msg021 := MyIni.ReadString('mynotex', 'msg021', '');
+      msg022 := MyIni.ReadString('mynotex', 'msg022', '');
+      msg023 := MyIni.ReadString('mynotex', 'msg023', '');
+      msg024 := MyIni.ReadString('mynotex', 'msg024', '');
+      msg025 := MyIni.ReadString('mynotex', 'msg025', '');
+      // msg026 := MyIni.ReadString('mynotex','msg026','');
+      msg027 := MyIni.ReadString('mynotex', 'msg027', '');
+      msg028 := MyIni.ReadString('mynotex', 'msg028', '');
+      msg029 := MyIni.ReadString('mynotex', 'msg029', '');
+      msg030 := MyIni.ReadString('mynotex', 'msg030', '');
+      msg031 := MyIni.ReadString('mynotex', 'msg031', '');
+      msg032 := MyIni.ReadString('mynotex', 'msg032', '');
+      msg033 := MyIni.ReadString('mynotex', 'msg033', '');
+      msg034 := MyIni.ReadString('mynotex', 'msg034', '');
+      msg035 := MyIni.ReadString('mynotex', 'msg035', '');
+      msg036 := MyIni.ReadString('mynotex', 'msg036', '');
+      msg037 := MyIni.ReadString('mynotex', 'msg037', '');
+      msg038 := MyIni.ReadString('mynotex', 'msg038', '');
+      msg039 := MyIni.ReadString('mynotex', 'msg039', '');
+      msg040 := MyIni.ReadString('mynotex', 'msg040', '');
+      msg041 := MyIni.ReadString('mynotex', 'msg041', '');
+      msg042 := MyIni.ReadString('mynotex', 'msg042', '');
+      msg043 := MyIni.ReadString('mynotex', 'msg043', '');
+      msg044 := MyIni.ReadString('mynotex', 'msg044', '');
+      msg045 := MyIni.ReadString('mynotex', 'msg045', '');
+      msg046 := MyIni.ReadString('mynotex', 'msg046', '');
+      msg047 := MyIni.ReadString('mynotex', 'msg047', '');
+      msg048 := MyIni.ReadString('mynotex', 'msg048', '');
+      msg049 := MyIni.ReadString('mynotex', 'msg049', '');
+      msg050 := MyIni.ReadString('mynotex', 'msg050', '');
+      msg051 := MyIni.ReadString('mynotex', 'msg051', '');
+      msg052 := MyIni.ReadString('mynotex', 'msg052', '');
+      msg053 := MyIni.ReadString('mynotex', 'msg053', '');
+      msg054 := MyIni.ReadString('mynotex', 'msg054', '');
+      msg055 := MyIni.ReadString('mynotex', 'msg055', '');
+      msg056 := MyIni.ReadString('mynotex', 'msg056', '');
+      msg057 := MyIni.ReadString('mynotex', 'msg057', '');
+      msg058 := MyIni.ReadString('mynotex', 'msg058', '');
+      msg059 := MyIni.ReadString('mynotex', 'msg059', '');
+      msg060 := MyIni.ReadString('mynotex', 'msg060', '');
+      msg061 := MyIni.ReadString('mynotex', 'msg061', '');
+      msg062 := MyIni.ReadString('mynotex', 'msg062', '');
+      msg063 := MyIni.ReadString('mynotex', 'msg063', '');
+      msg064 := MyIni.ReadString('mynotex', 'msg064', '');
+      msg065 := MyIni.ReadString('mynotex', 'msg065', '');
+      msg066 := MyIni.ReadString('mynotex', 'msg066', '');
+      // Not used from 1.4 version
+      // msg067 := MyIni.ReadString('mynotex','msg067','');
+      msg068 := MyIni.ReadString('mynotex', 'msg068', '');
+      msg069 := MyIni.ReadString('mynotex', 'msg069', '');
+      msg070 := MyIni.ReadString('mynotex', 'msg070', '');
+      msg071 := MyIni.ReadString('mynotex', 'msg071', '');
+      msg072 := MyIni.ReadString('mynotex', 'msg072', '');
+      msg073 := MyIni.ReadString('mynotex', 'msg073', '');
+      msg074 := MyIni.ReadString('mynotex', 'msg074', '');
+      msg075 := MyIni.ReadString('mynotex', 'msg075', '');
+      msg076 := MyIni.ReadString('mynotex', 'msg076', '');
+      msg077 := MyIni.ReadString('mynotex', 'msg077', '');
+      msg078 := MyIni.ReadString('mynotex', 'msg078', '');
+      msg079 := MyIni.ReadString('mynotex', 'msg079', '');
+      msg080 := MyIni.ReadString('mynotex', 'msg080', '');
+      msg081 := MyIni.ReadString('mynotex', 'msg081', '');
+      msg082 := MyIni.ReadString('mynotex', 'msg082', '');
       // Status bar messages
-      sbr001 := MyIni.ReadString('mynotex','sbr001','');
-      sbr002 := MyIni.ReadString('mynotex','sbr002','');
-      sbr003 := MyIni.ReadString('mynotex','sbr003','');
-      sbr004 := MyIni.ReadString('mynotex','sbr004','');
-      sbr005 := MyIni.ReadString('mynotex','sbr005','');
-      sbr006 := MyIni.ReadString('mynotex','sbr006','');
-      sbr007 := MyIni.ReadString('mynotex','sbr007','');
-      sbr008 := MyIni.ReadString('mynotex','sbr008','');
-      sbr009 := MyIni.ReadString('mynotex','sbr009','');
-      sbr010 := MyIni.ReadString('mynotex','sbr010','');
-      sbr011 := MyIni.ReadString('mynotex','sbr011','');
+      sbr001 := MyIni.ReadString('mynotex', 'sbr001', '');
+      sbr002 := MyIni.ReadString('mynotex', 'sbr002', '');
+      sbr003 := MyIni.ReadString('mynotex', 'sbr003', '');
+      sbr004 := MyIni.ReadString('mynotex', 'sbr004', '');
+      sbr005 := MyIni.ReadString('mynotex', 'sbr005', '');
+      sbr006 := MyIni.ReadString('mynotex', 'sbr006', '');
+      sbr007 := MyIni.ReadString('mynotex', 'sbr007', '');
+      sbr008 := MyIni.ReadString('mynotex', 'sbr008', '');
+      sbr009 := MyIni.ReadString('mynotex', 'sbr009', '');
+      sbr010 := MyIni.ReadString('mynotex', 'sbr010', '');
+      sbr011 := MyIni.ReadString('mynotex', 'sbr011', '');
       // Various captions modified in the code
-      cpt001 := MyIni.ReadString('mynotex','cpt001','');
-      cpt002 := MyIni.ReadString('mynotex','cpt002','');
-      cpt003 := MyIni.ReadString('mynotex','cpt003','');
-      cpt004 := MyIni.ReadString('mynotex','cpt004','');
-      cpt005 := MyIni.ReadString('mynotex','cpt005','');
-      cpt006 := MyIni.ReadString('mynotex','cpt006','');
-      cpt007 := MyIni.ReadString('mynotex','cpt007','');
-      cpt008 := MyIni.ReadString('mynotex','cpt008','');
-      cpt009 := MyIni.ReadString('mynotex','cpt009','');
-      cpt010 := MyIni.ReadString('mynotex','cpt010','');
-      cpt011 := MyIni.ReadString('mynotex','cpt011','');
-      cpt012 := MyIni.ReadString('mynotex','cpt012','');
-      cpt013 := MyIni.ReadString('mynotex','cpt013','');
-      cpt014 := MyIni.ReadString('mynotex','cpt014','');
-      cpt015 := MyIni.ReadString('mynotex','cpt015','');
-      cpt016 := MyIni.ReadString('mynotex','cpt016','');
-      cpt017 := MyIni.ReadString('mynotex','cpt017','');
-      cpt018 := MyIni.ReadString('mynotex','cpt018','');
-      cpt019 := MyIni.ReadString('mynotex','cpt019','');
-      cpt020 := MyIni.ReadString('mynotex','cpt020','');
-      cpt021 := MyIni.ReadString('mynotex','cpt021','');
-      cpt022 := MyIni.ReadString('mynotex','cpt022','');
-      cpt023 := MyIni.ReadString('mynotex','cpt023','');
-      cpt024 := MyIni.ReadString('mynotex','cpt024','');
-      cpt025 := MyIni.ReadString('mynotex','cpt025','');
-      cpt026 := MyIni.ReadString('mynotex','cpt026','');
-      cpt027 := MyIni.ReadString('mynotex','cpt027','');
-      cpt028 := MyIni.ReadString('mynotex','cpt028','');
-      cpt029 := MyIni.ReadString('mynotex','cpt029','');
-      cpt030 := MyIni.ReadString('mynotex','cpt030','');
-      cpt031 := MyIni.ReadString('mynotex','cpt031','');
-      cpt032 := MyIni.ReadString('mynotex','cpt032','');
+      cpt001 := MyIni.ReadString('mynotex', 'cpt001', '');
+      cpt002 := MyIni.ReadString('mynotex', 'cpt002', '');
+      cpt003 := MyIni.ReadString('mynotex', 'cpt003', '');
+      cpt004 := MyIni.ReadString('mynotex', 'cpt004', '');
+      cpt005 := MyIni.ReadString('mynotex', 'cpt005', '');
+      cpt006 := MyIni.ReadString('mynotex', 'cpt006', '');
+      cpt007 := MyIni.ReadString('mynotex', 'cpt007', '');
+      cpt008 := MyIni.ReadString('mynotex', 'cpt008', '');
+      cpt009 := MyIni.ReadString('mynotex', 'cpt009', '');
+      cpt010 := MyIni.ReadString('mynotex', 'cpt010', '');
+      cpt011 := MyIni.ReadString('mynotex', 'cpt011', '');
+      cpt012 := MyIni.ReadString('mynotex', 'cpt012', '');
+      cpt013 := MyIni.ReadString('mynotex', 'cpt013', '');
+      cpt014 := MyIni.ReadString('mynotex', 'cpt014', '');
+      cpt015 := MyIni.ReadString('mynotex', 'cpt015', '');
+      cpt016 := MyIni.ReadString('mynotex', 'cpt016', '');
+      cpt017 := MyIni.ReadString('mynotex', 'cpt017', '');
+      cpt018 := MyIni.ReadString('mynotex', 'cpt018', '');
+      cpt019 := MyIni.ReadString('mynotex', 'cpt019', '');
+      cpt020 := MyIni.ReadString('mynotex', 'cpt020', '');
+      cpt021 := MyIni.ReadString('mynotex', 'cpt021', '');
+      cpt022 := MyIni.ReadString('mynotex', 'cpt022', '');
+      cpt023 := MyIni.ReadString('mynotex', 'cpt023', '');
+      cpt024 := MyIni.ReadString('mynotex', 'cpt024', '');
+      cpt025 := MyIni.ReadString('mynotex', 'cpt025', '');
+      cpt026 := MyIni.ReadString('mynotex', 'cpt026', '');
+      cpt027 := MyIni.ReadString('mynotex', 'cpt027', '');
+      cpt028 := MyIni.ReadString('mynotex', 'cpt028', '');
+      cpt029 := MyIni.ReadString('mynotex', 'cpt029', '');
+      cpt030 := MyIni.ReadString('mynotex', 'cpt030', '');
+      cpt031 := MyIni.ReadString('mynotex', 'cpt031', '');
+      cpt032 := MyIni.ReadString('mynotex', 'cpt032', '');
       // Labels not modified in English, but that cannot be changed
       // in the OnCreate of main form because fmCopyright is not still created
-      cpt033 := MyIni.ReadString('mynotex','cpt033','');
-      cpt034 := MyIni.ReadString('mynotex','cpt034','');
-      cpt035 := MyIni.ReadString('mynotex','cpt035','');
-      cpt036 := MyIni.ReadString('mynotex','cpt036','');
-      cpt037 := MyIni.ReadString('mynotex','cpt037','');
-      cpt038 := MyIni.ReadString('mynotex','cpt038','');
-      cpt039 := MyIni.ReadString('mynotex','cpt039','');
-      cpt040 := MyIni.ReadString('mynotex','cpt040','');
-      cpt041 := MyIni.ReadString('mynotex','cpt041','');
-      cpt042 := MyIni.ReadString('mynotex','cpt042','');
-      cpt043 := MyIni.ReadString('mynotex','cpt043','');
-      cpt044 := MyIni.ReadString('mynotex','cpt044','');
-      cpt045 := MyIni.ReadString('mynotex','cpt045','');
-      cpt046 := MyIni.ReadString('mynotex','cpt046','');
-      cpt047 := MyIni.ReadString('mynotex','cpt047','');
-      cpt048 := MyIni.ReadString('mynotex','cpt048','');
-      cpt049 := MyIni.ReadString('mynotex','cpt049','');
-      cpt050 := MyIni.ReadString('mynotex','cpt050','');
-      cpt051 := MyIni.ReadString('mynotex','cpt051','');
-      cpt052 := MyIni.ReadString('mynotex','cpt052','');
-      cpt053 := MyIni.ReadString('mynotex','cpt053','');
-      cpt054 := MyIni.ReadString('mynotex','cpt054','');
-      cpt055 := MyIni.ReadString('mynotex','cpt055','');
-      cpt056 := MyIni.ReadString('mynotex','cpt056','');
-      cpt057 := MyIni.ReadString('mynotex','cpt057','');
-      cpt058 := MyIni.ReadString('mynotex','cpt058','');
-      cpt059 := MyIni.ReadString('mynotex','cpt059','');
-      cpt060 := MyIni.ReadString('mynotex','cpt060','');
-      cpt061 := MyIni.ReadString('mynotex','cpt061','');
-      cpt062 := MyIni.ReadString('mynotex','cpt062','');
-      cpt063 := MyIni.ReadString('mynotex','cpt063','');
-      cpt064 := MyIni.ReadString('mynotex','cpt064','');
-      cpt065 := MyIni.ReadString('mynotex','cpt065','');
-      cpt066 := MyIni.ReadString('mynotex','cpt066','');
-      cpt067 := MyIni.ReadString('mynotex','cpt067','');
-      cpt068 := MyIni.ReadString('mynotex','cpt068','');
-      cpt069 := MyIni.ReadString('mynotex','cpt069','');
-      cpt070 := MyIni.ReadString('mynotex','cpt070','');
-      cpt071 := MyIni.ReadString('mynotex','cpt071','');
-      cpt072 := MyIni.ReadString('mynotex','cpt072','');
-      cpt073 := MyIni.ReadString('mynotex','cpt073','');
-      cpt074 := MyIni.ReadString('mynotex','cpt074','');
-      cpt075 := MyIni.ReadString('mynotex','cpt075','');
-      cpt076 := MyIni.ReadString('mynotex','cpt076','');
-      cpt077 := MyIni.ReadString('mynotex','cpt077','');
-      cpt078 := MyIni.ReadString('mynotex','cpt078','');
-      cpt079 := MyIni.ReadString('mynotex','cpt079','');
-      cpt080 := MyIni.ReadString('mynotex','cpt080','');
-      cpt081 := MyIni.ReadString('mynotex','cpt081','');
-      cpt082 := MyIni.ReadString('mynotex','cpt082','');
-      cpt083 := MyIni.ReadString('mynotex','cpt083','');
-      cpt084 := MyIni.ReadString('mynotex','cpt084','');
-      cpt085 := MyIni.ReadString('mynotex','cpt085','');
-      cpt086 := MyIni.ReadString('mynotex','cpt086','');
-      cpt087 := MyIni.ReadString('mynotex','cpt087','');
-      cpt088 := MyIni.ReadString('mynotex','cpt088','');
-      cpt089 := MyIni.ReadString('mynotex','cpt089','');
-      cpt090 := MyIni.ReadString('mynotex','cpt090','');
-      cpt091 := MyIni.ReadString('mynotex','cpt091','');
-      cpt092 := MyIni.ReadString('mynotex','cpt092','');
-      cpt093 := MyIni.ReadString('mynotex','cpt093','');
-      cpt094 := MyIni.ReadString('mynotex','cpt094','');
+      cpt033 := MyIni.ReadString('mynotex', 'cpt033', '');
+      cpt034 := MyIni.ReadString('mynotex', 'cpt034', '');
+      cpt035 := MyIni.ReadString('mynotex', 'cpt035', '');
+      cpt036 := MyIni.ReadString('mynotex', 'cpt036', '');
+      cpt037 := MyIni.ReadString('mynotex', 'cpt037', '');
+      cpt038 := MyIni.ReadString('mynotex', 'cpt038', '');
+      cpt039 := MyIni.ReadString('mynotex', 'cpt039', '');
+      cpt040 := MyIni.ReadString('mynotex', 'cpt040', '');
+      cpt041 := MyIni.ReadString('mynotex', 'cpt041', '');
+      cpt042 := MyIni.ReadString('mynotex', 'cpt042', '');
+      cpt043 := MyIni.ReadString('mynotex', 'cpt043', '');
+      cpt044 := MyIni.ReadString('mynotex', 'cpt044', '');
+      cpt045 := MyIni.ReadString('mynotex', 'cpt045', '');
+      cpt046 := MyIni.ReadString('mynotex', 'cpt046', '');
+      cpt047 := MyIni.ReadString('mynotex', 'cpt047', '');
+      cpt048 := MyIni.ReadString('mynotex', 'cpt048', '');
+      cpt049 := MyIni.ReadString('mynotex', 'cpt049', '');
+      cpt050 := MyIni.ReadString('mynotex', 'cpt050', '');
+      cpt051 := MyIni.ReadString('mynotex', 'cpt051', '');
+      cpt052 := MyIni.ReadString('mynotex', 'cpt052', '');
+      cpt053 := MyIni.ReadString('mynotex', 'cpt053', '');
+      cpt054 := MyIni.ReadString('mynotex', 'cpt054', '');
+      cpt055 := MyIni.ReadString('mynotex', 'cpt055', '');
+      cpt056 := MyIni.ReadString('mynotex', 'cpt056', '');
+      cpt057 := MyIni.ReadString('mynotex', 'cpt057', '');
+      cpt058 := MyIni.ReadString('mynotex', 'cpt058', '');
+      cpt059 := MyIni.ReadString('mynotex', 'cpt059', '');
+      cpt060 := MyIni.ReadString('mynotex', 'cpt060', '');
+      cpt061 := MyIni.ReadString('mynotex', 'cpt061', '');
+      cpt062 := MyIni.ReadString('mynotex', 'cpt062', '');
+      cpt063 := MyIni.ReadString('mynotex', 'cpt063', '');
+      cpt064 := MyIni.ReadString('mynotex', 'cpt064', '');
+      cpt065 := MyIni.ReadString('mynotex', 'cpt065', '');
+      cpt066 := MyIni.ReadString('mynotex', 'cpt066', '');
+      cpt067 := MyIni.ReadString('mynotex', 'cpt067', '');
+      cpt068 := MyIni.ReadString('mynotex', 'cpt068', '');
+      cpt069 := MyIni.ReadString('mynotex', 'cpt069', '');
+      cpt070 := MyIni.ReadString('mynotex', 'cpt070', '');
+      cpt071 := MyIni.ReadString('mynotex', 'cpt071', '');
+      cpt072 := MyIni.ReadString('mynotex', 'cpt072', '');
+      cpt073 := MyIni.ReadString('mynotex', 'cpt073', '');
+      cpt074 := MyIni.ReadString('mynotex', 'cpt074', '');
+      cpt075 := MyIni.ReadString('mynotex', 'cpt075', '');
+      cpt076 := MyIni.ReadString('mynotex', 'cpt076', '');
+      cpt077 := MyIni.ReadString('mynotex', 'cpt077', '');
+      cpt078 := MyIni.ReadString('mynotex', 'cpt078', '');
+      cpt079 := MyIni.ReadString('mynotex', 'cpt079', '');
+      cpt080 := MyIni.ReadString('mynotex', 'cpt080', '');
+      cpt081 := MyIni.ReadString('mynotex', 'cpt081', '');
+      cpt082 := MyIni.ReadString('mynotex', 'cpt082', '');
+      cpt083 := MyIni.ReadString('mynotex', 'cpt083', '');
+      cpt084 := MyIni.ReadString('mynotex', 'cpt084', '');
+      cpt085 := MyIni.ReadString('mynotex', 'cpt085', '');
+      cpt086 := MyIni.ReadString('mynotex', 'cpt086', '');
+      cpt087 := MyIni.ReadString('mynotex', 'cpt087', '');
+      cpt088 := MyIni.ReadString('mynotex', 'cpt088', '');
+      cpt089 := MyIni.ReadString('mynotex', 'cpt089', '');
+      cpt090 := MyIni.ReadString('mynotex', 'cpt090', '');
+      cpt091 := MyIni.ReadString('mynotex', 'cpt091', '');
+      cpt092 := MyIni.ReadString('mynotex', 'cpt092', '');
+      cpt093 := MyIni.ReadString('mynotex', 'cpt093', '');
+      cpt094 := MyIni.ReadString('mynotex', 'cpt094', '');
+      cpt095 := MyIni.ReadString('mynotex', 'cpt095', '');
+      cpt096 := MyIni.ReadString('mynotex', 'cpt096', '');
+      cpt097 := MyIni.ReadString('mynotex', 'cpt097', '');
+      cpt098 := MyIni.ReadString('mynotex', 'cpt098', '');
+      cpt099 := MyIni.ReadString('mynotex', 'cpt099', '');
       // Components
-      lbFound.Caption := MyIni.ReadString('mynotex','cpn001','');
+      lbFound.Caption := MyIni.ReadString('mynotex', 'cpn001', '');
       cbFindKind.Items.Clear;
-      cbFindKind.Items.Add(MyIni.ReadString('mynotex','cpn002',''));
-      cbFindKind.Items.Add(MyIni.ReadString('mynotex','cpn003',''));
-      cbFindKind.Items.Add(MyIni.ReadString('mynotex','cpn004',''));
-      cbFindKind.Items.Add(MyIni.ReadString('mynotex','cpn005',''));
-      cbFindKind.Items.Add(MyIni.ReadString('mynotex','cpn006',''));
+      cbFindKind.Items.Add(MyIni.ReadString('mynotex', 'cpn002', ''));
+      cbFindKind.Items.Add(MyIni.ReadString('mynotex', 'cpn003', ''));
+      cbFindKind.Items.Add(MyIni.ReadString('mynotex', 'cpn004', ''));
+      cbFindKind.Items.Add(MyIni.ReadString('mynotex', 'cpn005', ''));
+      cbFindKind.Items.Add(MyIni.ReadString('mynotex', 'cpn006', ''));
       // Added later
-      cbFindKind.Items.Add(MyIni.ReadString('mynotex','cpn057',''));
-      cbFindKind.Items.Add(MyIni.ReadString('mynotex','cpn095',''));
-      cbFindKind.Items.Add(MyIni.ReadString('mynotex','cpn096',''));
-      cbFindKind.Items.Add(MyIni.ReadString('mynotex','cpn072',''));
-      grSubjects.Columns[0].Title.Caption := MyIni.ReadString('mynotex','cpn007','');
-      lbTitle.Caption := MyIni.ReadString('mynotex','cpn008','');
-      lbDate.Caption := MyIni.ReadString('mynotex','cpn009','');
-      grTitles.Cells[1, 0] := MyIni.ReadString('mynotex','cpn010','');
-      grTitles.Cells[2, 0]:= MyIni.ReadString('mynotex','cpn011','');
-      bnFindFirst.Caption := MyIni.ReadString('mynotex','cpn012','');
-      bnFindNext.Caption := MyIni.ReadString('mynotex','cpn013','');
+      cbFindKind.Items.Add(MyIni.ReadString('mynotex', 'cpn057', ''));
+      cbFindKind.Items.Add(MyIni.ReadString('mynotex', 'cpn095', ''));
+      cbFindKind.Items.Add(MyIni.ReadString('mynotex', 'cpn096', ''));
+      cbFindKind.Items.Add(MyIni.ReadString('mynotex', 'cpn072', ''));
+      grSubjects.Columns[0].Title.Caption := MyIni.ReadString('mynotex', 'cpn007', '');
+      lbTitle.Caption := MyIni.ReadString('mynotex', 'cpn008', '');
+      lbDate.Caption := MyIni.ReadString('mynotex', 'cpn009', '');
+      grTitles.Cells[1, 0] := MyIni.ReadString('mynotex', 'cpn010', '');
+      grTitles.Cells[2, 0] := MyIni.ReadString('mynotex', 'cpn011', '');
+      bnFindFirst.Caption := MyIni.ReadString('mynotex', 'cpn012', '');
+      bnFindNext.Caption := MyIni.ReadString('mynotex', 'cpn013', '');
       // Following item is unuseful because changed by code from ver. 1.0.6
       // odOpenDialog.Title := MyIni.ReadString('mynotex','cpn014','');
-      OpenSaveDlgFilter := MyIni.ReadString('mynotex','cpn015','');
-      fdColorDialog.Title := MyIni.ReadString('mynotex','cpn016','');
-      fdColorFormatting.Title := MyIni.ReadString('mynotex','cpn016','');
-      fdFontSelDialog.Title := MyIni.ReadString('mynotex','cpn017','');
-      fdFontGenDialog.Title := MyIni.ReadString('mynotex','cpn017','');
+      OpenSaveDlgFilter := MyIni.ReadString('mynotex', 'cpn015', '');
+      fdColorDialog.Title := MyIni.ReadString('mynotex', 'cpn016', '');
+      fdColorFormatting.Title := MyIni.ReadString('mynotex', 'cpn016', '');
+      fdFontSelDialog.Title := MyIni.ReadString('mynotex', 'cpn017', '');
+      fdFontGenDialog.Title := MyIni.ReadString('mynotex', 'cpn017', '');
       // Added later
-      lbTags.Caption := MyIni.ReadString('mynotex','cpn054','');
-      lbListAttach.Caption := MyIni.ReadString('mynotex','cpn055','');
+      lbTags.Caption := MyIni.ReadString('mynotex', 'cpn054', '');
+      stAttachments := MyIni.ReadString('mynotex', 'cpn055', '');
+      lbListAttach.Caption := MyIni.ReadString('mynotex', 'cpn055', '');
       // Menù items
-      miFile.Caption := MyIni.ReadString('mynotex','cpn018','');
-      miFileNew.Caption := MyIni.ReadString('mynotex','cpn019','');
+      miFile.Caption := MyIni.ReadString('mynotex', 'cpn018', '');
+      miFileNew.Caption := MyIni.ReadString('mynotex', 'cpn019', '');
       tbFileNew.Hint := miFile.Caption + ' - ' + miFileNew.Caption;
-      miFileOpen.Caption := MyIni.ReadString('mynotex','cpn020','');
+      miFileOpen.Caption := MyIni.ReadString('mynotex', 'cpn020', '');
       tbFileOpen.Hint := miFile.Caption + ' - ' + miFileOpen.Caption;
-      miFileClose.Caption := MyIni.ReadString('mynotex','cpn021','');
-      miFileSave.Caption := MyIni.ReadString('mynotex','cpn022','');
+      miFileClose.Caption := MyIni.ReadString('mynotex', 'cpn021', '');
+      miFileSave.Caption := MyIni.ReadString('mynotex', 'cpn022', '');
       tbFileSave.Hint := miFile.Caption + ' - ' + miFileSave.Caption;
-      miFileUndo.Caption := MyIni.ReadString('mynotex','cpn023','');
-      miFileUpdate.Caption := MyIni.ReadString('mynotex','cpn024','');
-      miFileCopyAs.Caption := MyIni.ReadString('mynotex','cpn025','');
-      miFileImport.Caption := MyIni.ReadString('mynotex','cpn026','');
-      miFileExport.Caption := MyIni.ReadString('mynotex','cpn027','');
+      miFileUndo.Caption := MyIni.ReadString('mynotex', 'cpn023', '');
+      miFileUpdate.Caption := MyIni.ReadString('mynotex', 'cpn024', '');
+      miFileCopyAs.Caption := MyIni.ReadString('mynotex', 'cpn025', '');
+      miFileImport.Caption := MyIni.ReadString('mynotex', 'cpn026', '');
+      miFileExport.Caption := MyIni.ReadString('mynotex', 'cpn027', '');
       // miFileHTML and miFileConvert are below because added later
-      miFileExit.Caption := MyIni.ReadString('mynotex','cpn028','');
-      miTrayExit.Caption := MyIni.ReadString('mynotex','cpn028','');
-      miSubject.Caption := MyIni.ReadString('mynotex','cpn029','');
-      miSubjectNew.Caption := MyIni.ReadString('mynotex','cpn030','');
+      miFileExit.Caption := MyIni.ReadString('mynotex', 'cpn028', '');
+      miTrayExit.Caption := MyIni.ReadString('mynotex', 'cpn028', '');
+      miSubject.Caption := MyIni.ReadString('mynotex', 'cpn029', '');
+      miSubjectNew.Caption := MyIni.ReadString('mynotex', 'cpn030', '');
       tbSubjectNew.Hint := miSubject.Caption + ' - ' + miSubjectNew.Caption;
-      miSubjectDelete.Caption := MyIni.ReadString('mynotex','cpn031','');
-      pmSubNew.Caption := MyIni.ReadString('mynotex','cpn030','');
-      pmSubDelete.Caption := MyIni.ReadString('mynotex','cpn031','');
-      miNotes.Caption := MyIni.ReadString('mynotex','cpn032','');
-      miNotesNew.Caption := MyIni.ReadString('mynotex','cpn033','');
+      miSubjectDelete.Caption := MyIni.ReadString('mynotex', 'cpn031', '');
+      pmSubNew.Caption := MyIni.ReadString('mynotex', 'cpn030', '');
+      pmSubDelete.Caption := MyIni.ReadString('mynotex', 'cpn031', '');
+      miNotes.Caption := MyIni.ReadString('mynotex', 'cpn032', '');
+      miNotesNew.Caption := MyIni.ReadString('mynotex', 'cpn033', '');
       tbNotesNew.Hint := miNotes.Caption + ' - ' + miNotesNew.Caption;
-      miNotesDelete.Caption := MyIni.ReadString('mynotex','cpn034','');
-      pmNotesNew.Caption := MyIni.ReadString('mynotex','cpn033','');
-      pmNotesDelete.Caption := MyIni.ReadString('mynotex','cpn034','');
-      miNotesOrderBy.Caption := MyIni.ReadString('mynotex','cpn035','');
-      miOrderByDate.Caption := MyIni.ReadString('mynotex','cpn036','');
-      miOrderByTitle.Caption := MyIni.ReadString('mynotex','cpn037','');
-      miNotesFind.Caption := MyIni.ReadString('mynotex','cpn038','');
+      miNotesDelete.Caption := MyIni.ReadString('mynotex', 'cpn034', '');
+      miNotesUndo.Caption := MyIni.ReadString('mynotex', 'cpn023', '');
+      pmNotesNew.Caption := MyIni.ReadString('mynotex', 'cpn033', '');
+      pmNotesDelete.Caption := MyIni.ReadString('mynotex', 'cpn034', '');
+      miNotesOrderBy.Caption := MyIni.ReadString('mynotex', 'cpn035', '');
+      miOrderByDate.Caption := MyIni.ReadString('mynotex', 'cpn036', '');
+      miOrderByTitle.Caption := MyIni.ReadString('mynotex', 'cpn037', '');
+      miNotesFind.Caption := MyIni.ReadString('mynotex', 'cpn038', '');
       // miNotesMove is below because added later
-      miNotesShowOnlyText.Caption := MyIni.ReadString('mynotex','cpn040','');
+      miNotesShowOnlyText.Caption := MyIni.ReadString('mynotex', 'cpn040', '');
       // Item deleted from version 1.3 of MyNotex
       // miOptionNotesFont.Caption := MyIni.ReadString('mynotex','cpn041','');
       // Item deleted from version 1.1 of MyNotex
       // miOptionNotesColorFont.Caption := MyIni.ReadString('mynotex','cpn042','');
-      miTools.Caption := MyIni.ReadString('mynotex','cpn044','');
-      miToolsSyncDo.Caption := MyIni.ReadString('mynotex','cpn045','');
+      miTools.Caption := MyIni.ReadString('mynotex', 'cpn044', '');
+      miToolsSyncDo.Caption := MyIni.ReadString('mynotex', 'cpn045', '');
       tbToolsSyncDo.Hint := miTools.Caption + ' - ' + miToolsSyncDo.Caption;
       // Item deleted from version 1.1 of MyNotex
       // miToolsSyncFolder.Caption := MyIni.ReadString('mynotex','cpn046','');
-      miToolsCompact.Caption := MyIni.ReadString('mynotex','cpn047','');
-      miCopyright.Caption := MyIni.ReadString('mynotex','cpn048','');
-      miLicence.Caption := MyIni.ReadString('mynotex','cpn049','');
+      miToolsCompact.Caption := MyIni.ReadString('mynotex', 'cpn047', '');
+      miCopyright.Caption := MyIni.ReadString('mynotex', 'cpn048', '');
+      miLicence.Caption := MyIni.ReadString('mynotex', 'cpn049', '');
       // Item deleted from version 1.1 of MyNotex
       // miToolsFormColor.Caption := MyIni.ReadString('mynotex','cpn050','');
-      miFileHTML.Caption := MyIni.ReadString('mynotex','cpn051','');
-      miNotesMove.Caption := MyIni.ReadString('mynotex','cpn052','');
-      miSubjectComments.Caption := MyIni.ReadString('mynotex','cpn053','');
-      pmSubComments.Caption := MyIni.ReadString('mynotex','cpn053','');
-      miNotesInsert.Caption := MyIni.ReadString('mynotex','cpn056','');
-      miNotesAttach.Caption := MyIni.ReadString('mynotex','cpn055','');
-      miAttachNew.Caption := MyIni.ReadString('mynotex','cpn102','');
-      miAttachOpen.Caption := MyIni.ReadString('mynotex','cpn020','');
-      miAttachSaveAs.Caption := MyIni.ReadString('mynotex','cpn058','');
-      miAttachDelete.Caption := MyIni.ReadString('mynotex','cpn034','');// Notes delete
-      pmAttNew.Caption := MyIni.ReadString('mynotex','cpn102','');
-      pmAttOpen.Caption := MyIni.ReadString('mynotex','cpn020','');
-      pmAttSaveAs.Caption := MyIni.ReadString('mynotex','cpn058','');
-      pmAttDelete.Caption := MyIni.ReadString('mynotex','cpn034','');
-      pmChangeFontColor.Caption := MyIni.ReadString('mynotex','cpn059','');
-      pmChangeFontBackColor.Caption := MyIni.ReadString('mynotex','cpn059','');
-      pmTextCopyHtml.Caption := MyIni.ReadString('mynotex','cpn060','');
-      pmTextSelectAll.Caption := MyIni.ReadString('mynotex','cpn061','');
-      miToolsLanguage.Caption := MyIni.ReadString('mynotex','cpn062','');
-      tbKindFontChange.Hint := MyIni.ReadString('mynotex','cpn063','');
-      tbColorFontChange.Hint := MyIni.ReadString('mynotex','cpn064','');
-      tbFontBold.Hint := MyIni.ReadString('mynotex','cpn065','');
-      tbFontItalic.Hint := MyIni.ReadString('mynotex','cpn066','');
-      tbFontUnderline.Hint := MyIni.ReadString('mynotex','cpn067','');
-      tbFontStrike.Hint := MyIni.ReadString('mynotex','cpn068','');
-      tbFontRestore.Hint := MyIni.ReadString('mynotex','cpn069','');
-      pmChangeFontKind.Caption := MyIni.ReadString('mynotex','cpn070','');
-      tbOpenNote.Hint := MyIni.ReadString('mynotex','cpn071','');
-      miNotesEncDecrypt.Caption := MyIni.ReadString('mynotex','cpn073','');
-      miNotesSendToWp.Caption := MyIni.ReadString('mynotex','cpn074','');
-      lbPwdTop.Caption := MyIni.ReadString('mynotex','cpn075','');
-      lbPwdBottom.Caption := MyIni.ReadString('mynotex','cpn076','');
-      lbListTags.Caption := MyIni.ReadString('mynotex','cpn077','');
-      miToolsOptions.Caption := MyIni.ReadString('mynotex','cpn039','');
-      pmHeading1.Caption := MyIni.ReadString('mynotex','cpn079','');
-      pmHeading2.Caption := MyIni.ReadString('mynotex','cpn080','');
-      pmHeading3.Caption := MyIni.ReadString('mynotex','cpn081','');
-      pmRestoreFont.Caption := MyIni.ReadString('mynotex','cpn082','');
-      miNotesTags.Caption := MyIni.ReadString('mynotex','cpn083','');
-      miTagsRename.Caption := MyIni.ReadString('mynotex','cpn084','');
-      miTagsRemove.Caption := MyIni.ReadString('mynotex','cpn085','');
-      miFileConvert.Caption := MyIni.ReadString('mynotex','cpn086','');
-      tbBackColorFontChange.Hint := MyIni.ReadString('mynotex','cpn087','');
-      tbAlignLeft.Hint := MyIni.ReadString('mynotex','cpn088','');
-      tbAlignCenter.Hint := MyIni.ReadString('mynotex','cpn089','');
-      tbAlignRight.Hint := MyIni.ReadString('mynotex','cpn090','');
-      tbAlignFill.Hint := MyIni.ReadString('mynotex','cpn091','');
-      tbAlignIndent.Hint := MyIni.ReadString('mynotex','cpn092','');
+      miFileHTML.Caption := MyIni.ReadString('mynotex', 'cpn051', '');
+      miNotesMove.Caption := MyIni.ReadString('mynotex', 'cpn052', '');
+      miSubjectComments.Caption := MyIni.ReadString('mynotex', 'cpn053', '');
+      pmSubComments.Caption := MyIni.ReadString('mynotex', 'cpn053', '');
+      miNotesInsert.Caption := MyIni.ReadString('mynotex', 'cpn056', '');
+      miNotesAttach.Caption := MyIni.ReadString('mynotex', 'cpn055', '');
+      miAttachNew.Caption := MyIni.ReadString('mynotex', 'cpn102', '');
+      miAttachOpen.Caption := MyIni.ReadString('mynotex', 'cpn020', '');
+      miAttachSaveAs.Caption := MyIni.ReadString('mynotex', 'cpn058', '');
+      miAttachDelete.Caption := MyIni.ReadString('mynotex', 'cpn034', '');// Notes delete
+      pmAttNew.Caption := MyIni.ReadString('mynotex', 'cpn102', '');
+      pmAttOpen.Caption := MyIni.ReadString('mynotex', 'cpn020', '');
+      pmAttSaveAs.Caption := MyIni.ReadString('mynotex', 'cpn058', '');
+      pmAttDelete.Caption := MyIni.ReadString('mynotex', 'cpn034', '');
+      pmChangeFontColor.Caption := MyIni.ReadString('mynotex', 'cpn059', '');
+      pmChangeFontBackColor.Caption := MyIni.ReadString('mynotex', 'cpn059', '');
+      pmTextCopyHtml.Caption := MyIni.ReadString('mynotex', 'cpn060', '');
+      pmTextSelectAll.Caption := MyIni.ReadString('mynotex', 'cpn061', '');
+      miToolsLanguage.Caption := MyIni.ReadString('mynotex', 'cpn062', '');
+      tbKindFontChange.Hint := MyIni.ReadString('mynotex', 'cpn063', '');
+      tbColorFontChange.Hint := MyIni.ReadString('mynotex', 'cpn064', '');
+      tbFontBold.Hint := MyIni.ReadString('mynotex', 'cpn065', '');
+      tbFontItalic.Hint := MyIni.ReadString('mynotex', 'cpn066', '');
+      tbFontUnderline.Hint := MyIni.ReadString('mynotex', 'cpn067', '');
+      tbFontStrike.Hint := MyIni.ReadString('mynotex', 'cpn068', '');
+      tbFontRestore.Hint := MyIni.ReadString('mynotex', 'cpn069', '');
+      pmChangeFontKind.Caption := MyIni.ReadString('mynotex', 'cpn070', '');
+      tbOpenNote.Hint := MyIni.ReadString('mynotex', 'cpn071', '');
+      miNotesEncDecrypt.Caption := MyIni.ReadString('mynotex', 'cpn073', '');
+      miNotesSendToWp.Caption := MyIni.ReadString('mynotex', 'cpn074', '');
+      lbPwdTop.Caption := MyIni.ReadString('mynotex', 'cpn075', '');
+      lbPwdBottom.Caption := MyIni.ReadString('mynotex', 'cpn076', '');
+      lbListTags.Caption := MyIni.ReadString('mynotex', 'cpn077', '');
+      miToolsOptions.Caption := MyIni.ReadString('mynotex', 'cpn039', '');
+      pmHeading1.Caption := MyIni.ReadString('mynotex', 'cpn079', '');
+      pmHeading2.Caption := MyIni.ReadString('mynotex', 'cpn080', '');
+      pmHeading3.Caption := MyIni.ReadString('mynotex', 'cpn081', '');
+      pmRestoreFont.Caption := MyIni.ReadString('mynotex', 'cpn082', '');
+      miNotesTags.Caption := MyIni.ReadString('mynotex', 'cpn083', '');
+      miTagsRename.Caption := MyIni.ReadString('mynotex', 'cpn084', '');
+      miTagsRemove.Caption := MyIni.ReadString('mynotex', 'cpn085', '');
+      miFileConvert.Caption := MyIni.ReadString('mynotex', 'cpn086', '');
+      tbBackColorFontChange.Hint := MyIni.ReadString('mynotex', 'cpn087', '');
+      tbAlignLeft.Hint := MyIni.ReadString('mynotex', 'cpn088', '');
+      tbAlignCenter.Hint := MyIni.ReadString('mynotex', 'cpn089', '');
+      tbAlignRight.Hint := MyIni.ReadString('mynotex', 'cpn090', '');
+      tbAlignFill.Hint := MyIni.ReadString('mynotex', 'cpn091', '');
+      tbAlignIndent.Hint := MyIni.ReadString('mynotex', 'cpn092', '');
       // Item deleted from version 1.1 of MyNotex
       // miToolsAutoSync.Caption := MyIni.ReadString('mynotex','cpn093','');
       // miToolsFormTransp.Caption := MyIni.ReadString('mynotex','cpn094','');
-      tbFind.Hint := MyIni.ReadString('mynotex','cpn097','');
-      pmTextCut.Caption := MyIni.ReadString('mynotex','cpn099','');
-      tbCut.Hint := MyIni.ReadString('mynotex','cpn099','');
-      pmTextCopy.Caption := MyIni.ReadString('mynotex','cpn100','');
-      tbCopy.Hint := MyIni.ReadString('mynotex','cpn100','');
-      tbCopyHtml.Hint := MyIni.ReadString('mynotex','cpn060','');
-      pmTextPaste.Caption := MyIni.ReadString('mynotex','cpn101','');
-      tbPaste.Hint := MyIni.ReadString('mynotex','cpn101','');
-      miNotesImages.Caption := MyIni.ReadString('mynotex','cpn103','');
-      miHelp.Caption := MyIni.ReadString('mynotex','cpn104','');
-      miNotesSendToBrowser.Caption := MyIni.ReadString('mynotex','cpn105','');
-      pmOpenBrowser.Caption := MyIni.ReadString('mynotex','cpn105','');
-      pmTextCopyLatex.Caption := MyIni.ReadString('mynotex','cpn106','');
-      pmTextSendAsEmail.Caption := MyIni.ReadString('mynotex','cpn107','');
-      miNotesPrint.Caption := MyIni.ReadString('mynotex','cpn108','');
-      miNotesShowActivities.Caption := MyIni.ReadString('mynotex','cpn133','');
-      miToolsEncryptGPG.Caption := MyIni.ReadString('mynotex','cpn109','');
-      miToolsDecryptGPG.Caption := MyIni.ReadString('mynotex','cpn110','');
-      tbActIndLeft.Hint := MyIni.ReadString('mynotex','cpn111','');
-      tbActIndRight.Hint := MyIni.ReadString('mynotex','cpn112','');
-      tbActMoveUp.Hint := MyIni.ReadString('mynotex','cpn113','');
-      tbActMoveDown.Hint := MyIni.ReadString('mynotex','cpn114','');
-      tbActInsertRow.Hint := MyIni.ReadString('mynotex','cpn115','');
-      tbActDeleteRow.Hint := MyIni.ReadString('mynotex','cpn116','');
-      tbActShowWbs.Hint := MyIni.ReadString('mynotex','cpn117','');
-      tbActCopyGroup.Hint := MyIni.ReadString('mynotex','cpn118','');
-      tbActPasteGroup.Hint := MyIni.ReadString('mynotex','cpn119','');
-      tbActCopyAll.Hint := MyIni.ReadString('mynotex','cpn120','');
-      tbActMoveFromText.Hint := MyIni.ReadString('mynotex','cpn135','');
-      miSubjectLook.Caption := MyIni.ReadString('mynotex','cpn136','');
-      pmSubLook.Caption := MyIni.ReadString('mynotex','cpn136','');
-      miSubjectOrder.Caption := MyIni.ReadString('mynotex','cpn035','');
-      miSubjectOrderTitle.Caption := MyIni.ReadString('mynotex','cpn037','');
-      miNotesLook.Caption := MyIni.ReadString('mynotex','cpn136','');
-      pmNotesLook.Caption := MyIni.ReadString('mynotex','cpn136','');
-      miNotesShowCal.Caption := MyIni.ReadString('mynotex','cpn137','');
-      tbActClearAll.Hint := MyIni.ReadString('mynotex','cpn138','');
-      miSubjectOrderCustom.Caption := MyIni.ReadString('mynotex','cpn139','');
-      miOrderCustom.Caption := MyIni.ReadString('mynotex','cpn139','');
-      miFilePrinterSetup.Caption := MyIni.ReadString('mynotex','cpn140','');
-      lbCalAct.Caption := MyIni.ReadString('mynotex','cpn141','');
-      tbActMoveBack.Hint := MyIni.ReadString('mynotex','cpn142','');
-      tbActMoveFor.Hint := MyIni.ReadString('mynotex','cpn143','');
+      tbFind.Hint := MyIni.ReadString('mynotex', 'cpn097', '');
+      pmTextCut.Caption := MyIni.ReadString('mynotex', 'cpn099', '');
+      tbCut.Hint := MyIni.ReadString('mynotex', 'cpn099', '');
+      pmTextCopy.Caption := MyIni.ReadString('mynotex', 'cpn100', '');
+      tbCopy.Hint := MyIni.ReadString('mynotex', 'cpn100', '');
+      tbCopyHtml.Hint := MyIni.ReadString('mynotex', 'cpn060', '');
+      pmTextPaste.Caption := MyIni.ReadString('mynotex', 'cpn101', '');
+      tbPaste.Hint := MyIni.ReadString('mynotex', 'cpn101', '');
+      miNotesImages.Caption := MyIni.ReadString('mynotex', 'cpn103', '');
+      miHelp.Caption := MyIni.ReadString('mynotex', 'cpn104', '');
+      miNotesSendToBrowser.Caption := MyIni.ReadString('mynotex', 'cpn105', '');
+      pmOpenBrowser.Caption := MyIni.ReadString('mynotex', 'cpn105', '');
+      pmTextCopyLatex.Caption := MyIni.ReadString('mynotex', 'cpn106', '');
+      pmTextSendAsEmail.Caption := MyIni.ReadString('mynotex', 'cpn107', '');
+      miNotesPrint.Caption := MyIni.ReadString('mynotex', 'cpn108', '');
+      miNotesShowActivities.Caption := MyIni.ReadString('mynotex', 'cpn133', '');
+      miToolsEncryptGPG.Caption := MyIni.ReadString('mynotex', 'cpn109', '');
+      miToolsDecryptGPG.Caption := MyIni.ReadString('mynotex', 'cpn110', '');
+      tbActIndLeft.Hint := MyIni.ReadString('mynotex', 'cpn111', '');
+      tbActIndRight.Hint := MyIni.ReadString('mynotex', 'cpn112', '');
+      tbActMoveUp.Hint := MyIni.ReadString('mynotex', 'cpn113', '');
+      tbActMoveDown.Hint := MyIni.ReadString('mynotex', 'cpn114', '');
+      tbActInsertRow.Hint := MyIni.ReadString('mynotex', 'cpn115', '');
+      tbActDeleteRow.Hint := MyIni.ReadString('mynotex', 'cpn116', '');
+      tbActShowWbs.Hint := MyIni.ReadString('mynotex', 'cpn117', '');
+      tbActCopyGroup.Hint := MyIni.ReadString('mynotex', 'cpn118', '');
+      tbActPasteGroup.Hint := MyIni.ReadString('mynotex', 'cpn119', '');
+      tbActCopyAll.Hint := MyIni.ReadString('mynotex', 'cpn120', '');
+      tbActMoveFromText.Hint := MyIni.ReadString('mynotex', 'cpn135', '');
+      miSubjectLook.Caption := MyIni.ReadString('mynotex', 'cpn136', '');
+      pmSubLook.Caption := MyIni.ReadString('mynotex', 'cpn136', '');
+      miSubjectOrder.Caption := MyIni.ReadString('mynotex', 'cpn035', '');
+      miSubjectOrderTitle.Caption := MyIni.ReadString('mynotex', 'cpn037', '');
+      miNotesLook.Caption := MyIni.ReadString('mynotex', 'cpn136', '');
+      pmNotesLook.Caption := MyIni.ReadString('mynotex', 'cpn136', '');
+      miNotesShowCal.Caption := MyIni.ReadString('mynotex', 'cpn137', '');
+      tbActClearAll.Hint := MyIni.ReadString('mynotex', 'cpn138', '');
+      miSubjectOrderCustom.Caption := MyIni.ReadString('mynotex', 'cpn139', '');
+      miOrderCustom.Caption := MyIni.ReadString('mynotex', 'cpn139', '');
+      miFilePrinterSetup.Caption := MyIni.ReadString('mynotex', 'cpn140', '');
+      lbCalAct.Caption := MyIni.ReadString('mynotex', 'cpn141', '');
+      tbActMoveBack.Hint := MyIni.ReadString('mynotex', 'cpn142', '');
+      tbActMoveFor.Hint := MyIni.ReadString('mynotex', 'cpn143', '');
+      miToolsAlarm.Caption := MyIni.ReadString('mynotex', 'cpn144', '');
+      bnSubUp.Hint := MyIni.ReadString('mynotex', 'cpn113', '');
+      bnNotesUp.Hint := MyIni.ReadString('mynotex', 'cpn113', '');
+      bnSubDown.Hint := MyIni.ReadString('mynotex', 'cpn114', '');
+      bnNotesDown.Hint := MyIni.ReadString('mynotex', 'cpn114', '');
+      bnFind.Hint := MyIni.ReadString('mynotex', 'cpn149', '');
+      bnFind2.Hint := MyIni.ReadString('mynotex', 'cpn150', '');
+      // Hints in dbNavigator
+      if MyIni.ReadString('mynotex', 'cpn145', '') <> '' then
+      begin
+        dbNavigator.Hints.Clear;
+        dbNavigator.Hints.Add(MyIni.ReadString('mynotex', 'cpn145', ''));
+        dbNavigator.Hints.Add(MyIni.ReadString('mynotex', 'cpn146', ''));
+        dbNavigator.Hints.Add(MyIni.ReadString('mynotex', 'cpn147', ''));
+        dbNavigator.Hints.Add(MyIni.ReadString('mynotex', 'cpn148', ''));
+      end;
       // Label in activity grid
-      lbID := MyIni.ReadString('mynotex','cpn122','');
-      lbWbs := MyIni.ReadString('mynotex','cpn123','');
-      lbState := MyIni.ReadString('mynotex','cpn124','');
-      lbActivity := MyIni.ReadString('mynotex','cpn125','');
-      lbStartDate := MyIni.ReadString('mynotex','cpn126','');
-      lbEndDate := MyIni.ReadString('mynotex','cpn127','');
-      lbDuration := MyIni.ReadString('mynotex','cpn128','');
-      lbResources := MyIni.ReadString('mynotex','cpn129','');
-      lbPriority := MyIni.ReadString('mynotex','cpn130','');
-      lbCompletion := MyIni.ReadString('mynotex','cpn131','');
-      lbCost := MyIni.ReadString('mynotex','cpn132','');
-      lbNotes := MyIni.ReadString('mynotex','cpn134','');
+      lbID := MyIni.ReadString('mynotex', 'cpn122', '');
+      lbWbs := MyIni.ReadString('mynotex', 'cpn123', '');
+      lbState := MyIni.ReadString('mynotex', 'cpn124', '');
+      lbActivity := MyIni.ReadString('mynotex', 'cpn125', '');
+      lbStartDate := MyIni.ReadString('mynotex', 'cpn126', '');
+      lbEndDate := MyIni.ReadString('mynotex', 'cpn127', '');
+      lbDuration := MyIni.ReadString('mynotex', 'cpn128', '');
+      lbResources := MyIni.ReadString('mynotex', 'cpn129', '');
+      lbPriority := MyIni.ReadString('mynotex', 'cpn130', '');
+      lbCompletion := MyIni.ReadString('mynotex', 'cpn131', '');
+      lbCost := MyIni.ReadString('mynotex', 'cpn132', '');
+      lbNotes := MyIni.ReadString('mynotex', 'cpn134', '');
       grActGrid.Repaint;
       // Months and days names
-      with FDate do begin
-        LongMonthNames[1] := MyIni.ReadString('mynotex','cmn001','');
-        LongMonthNames[2] := MyIni.ReadString('mynotex','cmn002','');
-        LongMonthNames[3] := MyIni.ReadString('mynotex','cmn003','');
-        LongMonthNames[4] := MyIni.ReadString('mynotex','cmn004','');
-        LongMonthNames[5] := MyIni.ReadString('mynotex','cmn005','');
-        LongMonthNames[6] := MyIni.ReadString('mynotex','cmn006','');
-        LongMonthNames[7] := MyIni.ReadString('mynotex','cmn007','');
-        LongMonthNames[8] := MyIni.ReadString('mynotex','cmn008','');
-        LongMonthNames[9] := MyIni.ReadString('mynotex','cmn009','');
-        LongMonthNames[10] := MyIni.ReadString('mynotex','cmn010','');
-        LongMonthNames[11] := MyIni.ReadString('mynotex','cmn011','');
-        LongMonthNames[12] := MyIni.ReadString('mynotex','cmn012','');
-        LongDayNames[1] := MyIni.ReadString('mynotex','cdn001','');
-        LongDayNames[2] := MyIni.ReadString('mynotex','cdn002','');
-        LongDayNames[3] := MyIni.ReadString('mynotex','cdn003','');
-        LongDayNames[4] := MyIni.ReadString('mynotex','cdn004','');
-        LongDayNames[5] := MyIni.ReadString('mynotex','cdn005','');
-        LongDayNames[6] := MyIni.ReadString('mynotex','cdn006','');
-        LongDayNames[7] := MyIni.ReadString('mynotex','cdn007','');
+      with FDate do
+      begin
+        LongMonthNames[1] := MyIni.ReadString('mynotex', 'cmn001', '');
+        LongMonthNames[2] := MyIni.ReadString('mynotex', 'cmn002', '');
+        LongMonthNames[3] := MyIni.ReadString('mynotex', 'cmn003', '');
+        LongMonthNames[4] := MyIni.ReadString('mynotex', 'cmn004', '');
+        LongMonthNames[5] := MyIni.ReadString('mynotex', 'cmn005', '');
+        LongMonthNames[6] := MyIni.ReadString('mynotex', 'cmn006', '');
+        LongMonthNames[7] := MyIni.ReadString('mynotex', 'cmn007', '');
+        LongMonthNames[8] := MyIni.ReadString('mynotex', 'cmn008', '');
+        LongMonthNames[9] := MyIni.ReadString('mynotex', 'cmn009', '');
+        LongMonthNames[10] := MyIni.ReadString('mynotex', 'cmn010', '');
+        LongMonthNames[11] := MyIni.ReadString('mynotex', 'cmn011', '');
+        LongMonthNames[12] := MyIni.ReadString('mynotex', 'cmn012', '');
+        LongDayNames[1] := MyIni.ReadString('mynotex', 'cdn001', '');
+        LongDayNames[2] := MyIni.ReadString('mynotex', 'cdn002', '');
+        LongDayNames[3] := MyIni.ReadString('mynotex', 'cdn003', '');
+        LongDayNames[4] := MyIni.ReadString('mynotex', 'cdn004', '');
+        LongDayNames[5] := MyIni.ReadString('mynotex', 'cdn005', '');
+        LongDayNames[6] := MyIni.ReadString('mynotex', 'cdn006', '');
+        LongDayNames[7] := MyIni.ReadString('mynotex', 'cdn007', '');
       end;
       // Date notes format
-      if MyIni.ReadString('mynotex','dtfmt','') = 'DMY' then begin
+      if MyIni.ReadString('mynotex', 'dtfmt', '') = 'DMY' then
+      begin
         FDate.ShortDateFormat := 'dd-mm-yyyy';
         FDate.LongDateFormat := 'dddd d mmmm yyyy';
-        dbDate.DateDisplayOrder:= ddoDMY;
-        dtCalAct.DateDisplayOrder:= ddoDMY;
+        dbDate.DateDisplayOrder := ddoDMY;
+        dtCalAct.DateDisplayOrder := ddoDMY;
         DateOrder := 'DMY';
         DateMask := '  -  -    ';
       end
-      else if MyIni.ReadString('mynotex','dtfmt','') = 'YMD' then begin
+      else if MyIni.ReadString('mynotex', 'dtfmt', '') = 'YMD' then
+      begin
         FDate.ShortDateFormat := 'yyyy-mm-dd';
         FDate.LongDateFormat := 'dddd mmmm d yyyy';
-        dbDate.DateDisplayOrder:= ddoYMD;
-        dtCalAct.DateDisplayOrder:= ddoYMD;
+        dbDate.DateDisplayOrder := ddoYMD;
+        dtCalAct.DateDisplayOrder := ddoYMD;
         DateOrder := 'YMD';
         DateMask := '    -  -  ';
       end
-      else begin
+      else
+      begin
         FDate.ShortDateFormat := 'mm-dd-yyyy';
         FDate.LongDateFormat := 'dddd mmmm d yyyy';
-        dbDate.DateDisplayOrder:= ddoMDY;
-        dtCalAct.DateDisplayOrder:= ddoMDY;
+        dbDate.DateDisplayOrder := ddoMDY;
+        dtCalAct.DateDisplayOrder := ddoMDY;
         DateOrder := 'MDY';
         DateMask := '  -  -    ';
+      end;
+      if MyIni.ReadString('mynotex', 'hour', '') = '24' then
+      begin
+        fl24Hour := True;
       end;
       // To refresh the date component if tables are opened;
       if sqNotes.Active = True then
@@ -10376,7 +11587,8 @@ begin
       MyIni.Free;
     end;
   end
-  else begin
+  else
+  begin
     // No translation file
     // Messages dialogs
     msg001 := 'Delete current subject and related notes?';
@@ -10404,7 +11616,7 @@ begin
     msg023 := 'No subjects selected.';
     msg024 := 'Operation successful.';
     msg025 := 'Cannot create HTML file.';
-    msg026 := 'Confirm file overwriting?';
+    // msg026 := 'Confirm file overwriting?';
     msg027 := 'It was not possible to move the note.';
     msg028 := 'It was not possible to load the file.';
     msg029 := 'It was not possible to create the attachment directory.';
@@ -10445,7 +11657,8 @@ begin
     msg064 := 'Recipient';
     msg065 := 'Type the recipient email or ID.';
     msg066 := 'Password';
-    msg067 := 'Type the password.';
+    // Not usd from the 1.4 version
+    // msg067 := 'Type the password.';
     msg068 := 'It was not possible to encrypt the file.';
     msg069 := 'Existing decrypted file cannot be overwritten.';
     msg070 := 'It was not possible to decrypt the file.';
@@ -10459,7 +11672,9 @@ begin
     msg078 := 'Move the activities in the note to the grid?';
     msg079 := 'Characters';
     msg080 := 'The date * is not in the right format.';
-   // Status bar messages
+    msg081 := 'It''s';
+    msg082 := 'left';
+    // Status bar messages
     sbr001 := 'Editing note.';
     sbr002 := 'No notes.';
     sbr003 := 'Note n.';
@@ -10489,7 +11704,7 @@ begin
     cpt015 := 'Occurrences:';
     cpt016 := 'Move note';
     cpt017 := 'Move the current note under the selected subject.';
-    cpt018 := 'Close';
+    cpt018 := 'Cancel';
     cpt019 := 'Subject comments';
     cpt020 := 'Subject title';
     cpt021 := 'Comments';
@@ -10514,7 +11729,7 @@ begin
     cpt040 := 'Visit the support forum of MyNotex.';
     cpt041 := 'Export dates';
     cpt042 := 'Open encrypted file';
-    cpt043 := 'Encrypted file|*.asc';
+    cpt043 := 'Encrypted file|*.pgp';
     cpt044 := 'Default font of the text:';
     cpt045 := 'pt.';
     cpt046 := 'Sync folder:';
@@ -10566,6 +11781,11 @@ begin
     cpt092 := 'and ends on';
     cpt093 := 'The project ends on';
     cpt094 := 'No dates';
+    cpt095 := 'Disable autosave';
+    cpt096 := 'Line space';
+    cpt097 := 'Paragraph space';
+    cpt098 := 'Set alarm';
+    cpt099 := 'Activate';
 
     // sdSaveDialog filter
     OpenSaveDlgFilter := 'File of MyNotex';
@@ -10580,6 +11800,3 @@ finalization
   fmMain.ActivityGroup.Free;
 
 end.
-
-
-

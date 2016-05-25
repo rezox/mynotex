@@ -90,6 +90,12 @@ type
     class function MoveParUpDown(const AWinControl: TWinControl;
       CurrLine: Integer; MoveUp: Boolean): Boolean; virtual;
     class function CountChar(const AWinControl: TWinControl): integer; virtual;
+    class function GetUndo(const AWinControl: TWinControl; Start: integer): boolean; virtual;
+    class function SetUndo(const AWinControl: TWinControl; Start: integer): boolean; virtual;
+    class function ClearUndo(const AWinControl: TWinControl): boolean; virtual;
+    class function SetLineSpace(const AWinControl: TWinControl; Space: integer): boolean; virtual;
+    class function SetParagraphSpace(const AWinControl: TWinControl; Space: integer): boolean; virtual;
+    class function CleanParagraph(const AWinControl: TWinControl; Start: Integer): boolean; virtual;
     class function SetCursorMiddleScreen(const AWinControl: TWinControl; CurrLine: integer): boolean; virtual;
 
   end;
@@ -216,6 +222,36 @@ begin
 end;
 
 class function TWSCustomRichMemo.CountChar(const AWinControl: TWinControl): integer;
+begin
+  // Added by Massimo Nardello
+end;
+
+class function TWSCustomRichMemo.GetUndo(const AWinControl: TWinControl; Start: integer): boolean;
+begin
+  // Added by Massimo Nardello
+end;
+
+class function TWSCustomRichMemo.SetUndo(const AWinControl: TWinControl; Start: integer): boolean;
+begin
+  // Added by Massimo Nardello
+end;
+
+class function TWSCustomRichMemo.ClearUndo(const AWinControl: TWinControl): boolean;
+begin
+  // Added by Massimo Nardello
+end;
+
+class function TWSCustomRichMemo.SetLineSpace(const AWinControl: TWinControl; Space: integer): boolean;
+begin
+  // Added by Massimo Nardello
+end;
+
+class function TWSCustomRichMemo.SetParagraphSpace(const AWinControl: TWinControl; Space: integer): boolean;
+begin
+  // Added by Massimo Nardello
+end;
+
+class function TWSCustomRichMemo.CleanParagraph(const AWinControl: TWinControl; Start: integer): boolean;
 begin
   // Added by Massimo Nardello
 end;

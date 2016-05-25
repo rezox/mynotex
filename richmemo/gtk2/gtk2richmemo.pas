@@ -76,6 +76,12 @@ type
       CurrLine: integer; MoveUp: boolean): boolean; override;
     class function CountChar(const AWinControl: TWinControl): integer; override;
     class function SetCursorMiddleScreen(const AWinControl: TWinControl; CurrLine: integer): boolean; override;
+    class function GetUndo(const AWinControl: TWinControl; Start: integer): boolean; override;
+    class function SetUndo(const AWinControl: TWinControl; Start: integer): boolean; override;
+    class function ClearUndo(const AWinControl: TWinControl): boolean; override;
+    class function SetLineSpace(const AWinControl: TWinControl; Space: integer): boolean; override;
+    class function SetParagraphSpace(const AWinControl: TWinControl; Space: integer): boolean; override;
+    class function CleanParagraph(const AWinControl: TWinControl; Start: Integer): boolean; override;
   end;
 
 var
@@ -930,7 +936,8 @@ begin
   Result := gtk_text_buffer_get_char_count(buffer);
 end;
 
-class function TGtk2WSCustomRichMemo.SetCursorMiddleScreen(const AWinControl: TWinControl; CurrLine: integer): boolean;
+class function TGtk2WSCustomRichMemo.SetCursorMiddleScreen(
+  const AWinControl: TWinControl; CurrLine: integer): boolean;
 var
   Widget, TextWidget: PGtkWidget;
   list: PGList;
@@ -954,5 +961,187 @@ begin
   gtk_text_buffer_delete_mark(buffer, mypos);
 end;
 
+class function TGtk2WSCustomRichMemo.SetUndo(
+  const AWinControl: TWinControl; Start: integer): boolean;
+var
+  Widget, TextWidget: PGtkWidget;
+  list: PGList;
+  buffer: PGtkTextBuffer;
+  istart, iend: TGtkTextIter;
+  clipboard: PGtkClipboard;
+begin
+  // Added by Massimo Nardello
+  Widget := PGtkWidget(PtrUInt(AWinControl.Handle));
+  list := gtk_container_get_children(PGtkContainer(Widget));
+  if not Assigned(list) then
+    Exit;
+  TextWidget := PGtkWidget(list^.Data);
+  if not Assigned(TextWidget) then
+    Exit;
+  clipboard := gtk_clipboard_get(GDK_SELECTION_SECONDARY);
+  buffer := gtk_text_view_get_buffer(PGtkTextView(TextWidget));
+  gtk_text_buffer_begin_user_action(buffer);
+  gtk_text_buffer_get_start_iter(buffer, @istart);
+  gtk_text_buffer_get_end_iter(buffer, @iend);
+  gtk_text_buffer_delete(buffer, @istart, @iend);
+  gtk_text_buffer_paste_clipboard(buffer, clipboard, NULL, True);
+  gtk_text_buffer_get_iter_at_offset(buffer, @istart, Start);  
+  gtk_text_buffer_select_range(buffer, @istart, @istart);
+  gtk_text_buffer_end_user_action(buffer);
+end;
+
+class function TGtk2WSCustomRichMemo.GetUndo(
+  const AWinControl: TWinControl; Start: integer): boolean;
+var
+  Widget, TextWidget: PGtkWidget;
+  list: PGList;
+  buffer: PGtkTextBuffer;
+  istart, iend: TGtkTextIter;
+  clipboard: PGtkClipboard;
+begin
+  // Added by Massimo Nardello
+  Widget := PGtkWidget(PtrUInt(AWinControl.Handle));
+  list := gtk_container_get_children(PGtkContainer(Widget));
+  if not Assigned(list) then
+    Exit;
+  TextWidget := PGtkWidget(list^.Data);
+  if not Assigned(TextWidget) then
+    Exit;
+  clipboard := gtk_clipboard_get(GDK_SELECTION_SECONDARY);
+  buffer := gtk_text_view_get_buffer(PGtkTextView(TextWidget));
+  gtk_text_buffer_begin_user_action(buffer);
+  gtk_text_buffer_get_start_iter(buffer, @istart);
+  gtk_text_buffer_get_end_iter(buffer, @iend);
+  gtk_text_buffer_select_range(buffer, @istart, @iend);
+  gtk_text_buffer_copy_clipboard(buffer, clipboard);
+  gtk_text_buffer_get_iter_at_offset(buffer, @istart, Start);  
+  gtk_text_buffer_select_range(buffer, @istart, @istart);
+  gtk_text_buffer_end_user_action(buffer);
+end;
+
+class function TGtk2WSCustomRichMemo.ClearUndo(
+  const AWinControl: TWinControl): boolean;
+var
+  Widget, TextWidget: PGtkWidget;
+  list: PGList;
+  clipboard: PGtkClipboard;
+begin
+  // Added by Massimo Nardello
+  Widget := PGtkWidget(PtrUInt(AWinControl.Handle));
+  list := gtk_container_get_children(PGtkContainer(Widget));
+  if not Assigned(list) then
+    Exit;
+  TextWidget := PGtkWidget(list^.Data);
+  if not Assigned(TextWidget) then
+    Exit;
+  clipboard := gtk_clipboard_get(GDK_SELECTION_SECONDARY);
+  gtk_clipboard_clear(clipboard);
+  gtk_clipboard_set_text(clipboard, '', 0);
+end;
+
+class function TGtk2WSCustomRichMemo.SetLineSpace(
+  const AWinControl: TWinControl; Space: Integer): boolean;
+var
+  Widget, TextWidget: PGtkWidget;
+  list: PGList;
+begin
+  // Added by Massimo Nardello
+  Widget := PGtkWidget(PtrUInt(AWinControl.Handle));
+  list := gtk_container_get_children(PGtkContainer(Widget));
+  if not Assigned(list) then
+    Exit;
+  TextWidget := PGtkWidget(list^.Data);
+  if not Assigned(TextWidget) then
+    Exit;
+  gtk_text_view_set_pixels_inside_wrap(PGtkTextView(TextWidget), Space);
+end;
+
+class function TGtk2WSCustomRichMemo.SetParagraphSpace(
+  const AWinControl: TWinControl; Space: Integer): boolean;
+var
+  Widget, TextWidget: PGtkWidget;
+  list: PGList;
+begin
+  // Added by Massimo Nardello
+  Widget := PGtkWidget(PtrUInt(AWinControl.Handle));
+  list := gtk_container_get_children(PGtkContainer(Widget));
+  if not Assigned(list) then
+    Exit;
+  TextWidget := PGtkWidget(list^.Data);
+  if not Assigned(TextWidget) then
+    Exit;
+  gtk_text_view_set_pixels_below_lines(PGtkTextView(TextWidget), Space);
+end;
+
+class function TGtk2WSCustomRichMemo.CleanParagraph(
+  const AWinControl: TWinControl; Start: Integer): boolean;
+var
+  Widget, TextWidget: PGtkWidget;
+  list: PGList;
+  buffer: PGtkTextBuffer;
+  iStart, iEnd: TGtkTextIter;
+  IsList: boolean;
+begin
+  // Added by Massimo Nardello
+  Result := True;
+  Widget := PGtkWidget(PtrUInt(AWinControl.Handle));
+  list := gtk_container_get_children(PGtkContainer(Widget));
+  if not Assigned(list) then
+    Exit;
+  TextWidget := PGtkWidget(list^.Data);
+  if not Assigned(TextWidget) then
+    Exit;
+  buffer := gtk_text_view_get_buffer(PGtkTextView(TextWidget));
+  if not Assigned(buffer) then
+    Exit;
+  gtk_text_buffer_get_iter_at_offset(buffer, @iStart, Start);
+  // Go to the first character after two CR
+  IsList := True;
+  while IsList = True do
+  begin
+    gtk_text_iter_backward_char(@iStart);
+    if gtk_text_iter_is_start(@iStart) = True then
+      IsList := False
+    else if gtk_text_iter_get_char(@iStart) = Ord(LineEnding) then
+    begin
+      gtk_text_iter_backward_char(@iStart);
+      if ((gtk_text_iter_is_start(@iStart) = True) or
+        (gtk_text_iter_get_char(@iStart) = Ord(LineEnding))) then
+      begin
+        IsList := False;
+        gtk_text_iter_forward_char(@iStart);
+        gtk_text_iter_forward_char(@iStart);
+      end;
+    end;
+  end;
+  // Go down
+  IsList := True;
+  while IsList = True do
+  begin
+    if gtk_text_iter_is_end(@iStart) = True then
+    begin
+      IsList := False;
+      Exit;
+    end
+    else if gtk_text_iter_get_char(@iStart) = Ord(LineEnding) then
+    begin
+      gtk_text_iter_forward_char(@iStart);
+      if ((gtk_text_iter_get_char(@iStart) = Ord(LineEnding)) or
+        (gtk_text_iter_is_end(@iStart) = True)) then
+      begin
+        IsList := False;
+        Exit;
+      end
+      else
+      begin
+        iEnd := iStart;
+        gtk_text_iter_backward_char(@iStart);
+        gtk_text_buffer_delete(buffer, @iStart, @iEnd);
+        gtk_text_buffer_insert(buffer, @iStart, PChar(' '), -1);
+      end;
+    end;
+    gtk_text_iter_forward_char(@iStart);
+  end;
+end;
 
 end.

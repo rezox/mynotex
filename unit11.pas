@@ -26,40 +26,31 @@
 // GNU General Public License for more details.
 // ***********************************************************************
 // ***********************************************************************
+unit Unit11;
 
-unit UnitCopyright;
-
-{$mode objfpc}{$H+}
+{$mode objfpc}
 
 interface
 
 uses
   Classes, SysUtils, FileUtil, LResources, Forms, Controls, Graphics, Dialogs,
-  ExtCtrls, StdCtrls, LCLIntf;
+  ExtCtrls, StdCtrls;
 
 type
 
-  { TfmCopyright }
+  { TfmShowAlarm }
 
-  TfmCopyright = class(TForm)
-    imImagecopyright: TImage;
+  TfmShowAlarm = class(TForm)
+    imClock: TImage;
     lbButton: TLabel;
-    lbCopyrightName1: TLabel;
-    lbCopyrightSite: TLabel;
-    lbCopyrightAuthor2: TLabel;
-    lbCopyrightName: TLabel;
-    lbCopyrightAuthor1: TLabel;
-    lbCopyrightForum: TLabel;
-    meCopyrightText: TMemo;
-    shShape: TShape;
+    lbMessage: TLabel;
+    spBox: TShape;
     tmAlarmForm: TTimer;
-    procedure FormKeyPress(Sender: TObject; var Key: char);
+    procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
     procedure FormShow(Sender: TObject);
     procedure lbButtonClick(Sender: TObject);
     procedure lbButtonMouseEnter(Sender: TObject);
     procedure lbButtonMouseLeave(Sender: TObject);
-    procedure lbCopyrightForumClick(Sender: TObject);
-    procedure lbCopyrightSiteClick(Sender: TObject);
     procedure tmAlarmFormTimer(Sender: TObject);
   private
     { private declarations }
@@ -68,73 +59,68 @@ type
   end;
 
 var
-  fmCopyright: TfmCopyright;
+  fmShowAlarm: TfmShowAlarm;
+  iShowButton: integer = 0;
 
 implementation
 
-{ TfmCopyright }
+{ TfmShowAlarm }
 
-procedure TfmCopyright.lbCopyrightForumClick(Sender: TObject);
+procedure TfmShowAlarm.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
-  // Open MyNotex forum
-  OpenURL('http://groups.google.com/forum/#!forum/mynotex');
+  // Deactivate the timer
+  tmAlarmForm.Enabled := False;
+  fmShowAlarm.AlphaBlendValue := 255;
+  iShowButton := 0;
+  lbButton.Visible := False;
 end;
 
-procedure TfmCopyright.lbButtonMouseEnter(Sender: TObject);
+procedure TfmShowAlarm.FormShow(Sender: TObject);
 begin
-  // Button color on enter
-  lbButton.Color := $000000D4;
-  lbButton.Font.Color := $0026B1F2;
+  // Activate the timer
+  tmAlarmForm.Enabled := True;
 end;
 
-procedure TfmCopyright.lbButtonMouseLeave(Sender: TObject);
-begin
-  // Button color on exit
-  lbButton.Color := $0026B1F2;
-  lbButton.Font.Color := $000000D4;
-end;
-
-procedure TfmCopyright.lbCopyrightSiteClick(Sender: TObject);
-begin
-  // Open MyNotex site
-  OpenURL('http://sites.google.com/site/mynotex');
-end;
-
-procedure TfmCopyright.tmAlarmFormTimer(Sender: TObject);
-begin
-  // Show the form fading
-  if fmCopyright.AlphaBlendValue < 255 then
-  begin
-    fmCopyright.AlphaBlendValue := fmCopyright.AlphaBlendValue + 1;
-  end
-  else
-  begin
-    tmAlarmForm.Enabled := False;
-  end;
-end;
-
-procedure TfmCopyright.lbButtonClick(Sender: TObject);
+procedure TfmShowAlarm.lbButtonClick(Sender: TObject);
 begin
   // Close the form
   Close;
 end;
 
-procedure TfmCopyright.FormKeyPress(Sender: TObject; var Key: char);
+procedure TfmShowAlarm.lbButtonMouseEnter(Sender: TObject);
 begin
-  // Close on ESC
-  if Key = #27 then
-    Close;
+  // Button color on enter
+  lbButton.Color := clMaroon;
 end;
 
-procedure TfmCopyright.FormShow(Sender: TObject);
+procedure TfmShowAlarm.lbButtonMouseLeave(Sender: TObject);
 begin
-  // Start fading
-  fmCopyright.AlphaBlendValue := 0;
-  tmAlarmForm.Enabled := True;
+  // Button color on exit
+  lbButton.Color := $000000D4;
+end;
+
+procedure TfmShowAlarm.tmAlarmFormTimer(Sender: TObject);
+begin
+  // Show the form fading
+  if fmShowAlarm.AlphaBlendValue > 0 then
+  begin
+    fmShowAlarm.AlphaBlendValue := fmShowAlarm.AlphaBlendValue - 1;
+  end
+  else
+  begin
+    fmShowAlarm.AlphaBlendValue := 255;
+    Inc(iShowButton);
+    if iShowButton = 2 then
+    begin
+      lbButton.Visible := True;
+    end;
+  end;
+  fmShowAlarm.BringToFront;
 end;
 
 initialization
-  {$I unitcopyright.lrs}
+  {$I unit11.lrs}
 
 end.
+
 

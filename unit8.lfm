@@ -15,19 +15,20 @@ object fmLook: TfmLook
   OnKeyPress = FormKeyPress
   OnShow = FormShow
   Position = poScreenCenter
+  ShowHint = True
   ShowInTaskBar = stNever
-  LCLVersion = '1.2.6.0'
+  LCLVersion = '1.4.4.0'
   object lbColBack: TLabel
     Left = 44
-    Height = 18
+    Height = 21
     Top = 25
-    Width = 132
+    Width = 124
     Caption = 'Background color'
     ParentColor = False
   end
   object cbColBack: TColorBox
     Left = 44
-    Height = 30
+    Height = 33
     Top = 48
     Width = 184
     DefaultColorColor = clWhite
@@ -48,7 +49,7 @@ object fmLook: TfmLook
   end
   object cbColFont: TColorBox
     Left = 244
-    Height = 30
+    Height = 33
     Top = 48
     Width = 184
     Style = [cbStandardColors, cbExtendedColors, cbCustomColor, cbPrettyNames, cbCustomColors]
@@ -57,9 +58,9 @@ object fmLook: TfmLook
   end
   object lbColFont: TLabel
     Left = 244
-    Height = 18
+    Height = 21
     Top = 25
-    Width = 74
+    Width = 73
     Caption = 'Font color'
     ParentColor = False
   end
@@ -112,25 +113,25 @@ object fmLook: TfmLook
   end
   object lbColLorem1: TLabel
     Left = 44
-    Height = 18
+    Height = 21
     Top = 151
-    Width = 70
+    Width = 67
     Caption = 'Default 1'
     ParentColor = False
   end
   object lbColLorem2: TLabel
     Left = 244
-    Height = 18
+    Height = 21
     Top = 151
-    Width = 70
+    Width = 67
     Caption = 'Default 2'
     ParentColor = False
   end
   object lbColLorem3: TLabel
     Left = 44
-    Height = 18
+    Height = 21
     Top = 223
-    Width = 70
+    Width = 67
     Caption = 'Default 3'
     ParentColor = False
   end

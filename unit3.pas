@@ -1,7 +1,7 @@
 // ***********************************************************************
 // ***********************************************************************
-// MyNotex 1.3
-// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2015.
+// MyNotex 1.4
+// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2016.
 // Free software released under GPL licence version 3 or later.
 
 // In this software is used DBZVDateTimePicker component
@@ -97,7 +97,7 @@ end;
 procedure TfmMoveNote.bnMoveNoteClick(Sender: TObject);
 var
   AttDir, NtTitle, NtText, NtActivities, NtTags, NTFontCol, NTBackCol,
-    NtAttName, NTDateFormat, NTOldUID, NTCheckPwd: string;
+  NtAttName, NTDateFormat, NTOldUID, NTCheckPwd: string;
   NtDate, NTDTMod: TDateTime;
   IDOldNote, IDNewNote, i: integer;
   myStringList: TStringList;
@@ -186,9 +186,8 @@ begin
           begin
             RenameFileUTF8(AttDir + DirectorySeparator + NTOldUID +
               '-img' + FormatFloat('0000', i) + '.jpeg',
-              AttDir + DirectorySeparator +
-              FieldByName('NotesUID').AsString +
-              '-img' + FormatFloat('0000', i) + '.jpeg');
+              AttDir + DirectorySeparator + FieldByName(
+              'NotesUID').AsString + '-img' + FormatFloat('0000', i) + '.jpeg');
             Inc(i);
           end;
         end;

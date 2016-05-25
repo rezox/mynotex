@@ -4,7 +4,7 @@ Comment=Take and manage textual notes
 Exec=env LIBOVERLAY_SCROLLBAR=0 /opt/mynotex/mynotex %U
 Terminal=false
 Type=Application
-Icon=mynotex.png
+Icon=mynotex
 Categories=Office;
 Name[en]=MyNotex
 GenericName=MyNotex

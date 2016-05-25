@@ -1,7 +1,7 @@
 // ***********************************************************************
 // ***********************************************************************
-// MyNotex 1.3
-// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2015.
+// MyNotex 1.4
+// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2016.
 // Free software released under GPL licence version 3 or later.
 
 // In this software is used DBZVDateTimePicker component

@@ -1,7 +1,7 @@
 // ***********************************************************************
 // ***********************************************************************
-// MyNotex 1.3
-// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2015.
+// MyNotex 1.4
+// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2016.
 // Free software released under GPL licence version 3 or later.
 
 // In this software is used DBZVDateTimePicker component
@@ -34,7 +34,7 @@ unit Unit9;
 interface
 
 uses
-  Classes, SysUtils, memds, FileUtil, RTTICtrls, LResources, Forms, Controls,
+  Classes, SysUtils, FileUtil, RTTICtrls, LResources, Forms, Controls,
   Graphics, Dialogs, Sqlite3DS, DB, BufDataset, LCLProc, StdCtrls,
   Grids, Calendar, ExtCtrls, types;
 
@@ -328,10 +328,10 @@ begin
             bfCal.FieldByName('mdCalCompletion').AsInteger := 0;
           myData := UTF8Copy(myData, UTF8Pos(#9, myData) + 1, UTF8Length(myData));
           if UTF8Copy(myData, 1, UTF8Pos(#9, myData) - 1) <> '' then
-            bfCal.FieldByName('mdCalCost').AsCurrency :=
-              StrToCurr(UTF8Copy(myData, 1, UTF8Pos(#9, myData) - 1))
+            bfCal.FieldByName('mdCalCost').AsString :=
+              UTF8Copy(myData, 1, UTF8Pos(#9, myData) - 1)
           else
-            bfCal.FieldByName('mdCalCost').AsCurrency := 0;
+            bfCal.FieldByName('mdCalCost').AsString := '0';
           myData := UTF8Copy(myData, UTF8Pos(#9, myData) + 1, UTF8Length(myData));
           if UTF8Copy(myData, 1, UTF8Pos(#9, myData) - 1) <> '' then
             bfCal.FieldByName('mdCalNotes').AsString :=
@@ -565,8 +565,8 @@ begin
     // necessary for the bfCal component
     if TryStrToDate(StringReplace(stDate, '-', DateSeparator, [rfReplaceAll]),
       Result, FDate.ShortDateFormat) = False then
-    Result := 0;
-  // This should never happen, anyway...
+      Result := 0;
+    // This should never happen, anyway...
   except
     Result := 0;
     MessageDlg(StringReplace(fmMain.msg080, '*', stDate, []),
@@ -585,6 +585,7 @@ initialization
   {$I unit9.lrs}
 
 end.
+
 
 
 

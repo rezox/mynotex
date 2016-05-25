@@ -1,7 +1,7 @@
 // ***********************************************************************
 // ***********************************************************************
-// MyNotex 1.3
-// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2015.
+// MyNotex 1.4
+// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2016.
 // Free software released under GPL licence version 3 or later.
 
 // In this software is used DBZVDateTimePicker component
@@ -59,15 +59,22 @@ type
     cbOptionsNoChar: TCheckBox;
     cbOptionsOpenLastFile: TCheckBox;
     cbOptionsActivateTray: TCheckBox;
+    cbOptionsNoAutosave: TCheckBox;
+    edOptParSpace: TEdit;
+    edOptLineSpace: TEdit;
+    lbOptionsPar: TLabel;
     lbOptionDef1: TLabel;
     lbOptionDef2: TLabel;
     lbOptionDef3: TLabel;
     lbOptionsColor: TLabel;
     lbOptionsFont: TLabel;
+    lbOptionsLine: TLabel;
     lbOptionsSyncDir: TLabel;
     lbOptionsFormColor: TLabel;
     lbOptionsFormTrans: TLabel;
     tbOptionsFormTrans: TTrackBar;
+    udOptParSpace: TUpDown;
+    udOptLineSpace: TUpDown;
     procedure bnOptBack1Click(Sender: TObject);
     procedure bnOptBack2Click(Sender: TObject);
     procedure bnOptBack3Click(Sender: TObject);
@@ -81,9 +88,12 @@ type
     procedure bnOptionsSyncDirClick(Sender: TObject);
     procedure cbOptionsActivateTrayChange(Sender: TObject);
     procedure cbOptionsAutosyncChange(Sender: TObject);
+    procedure cbOptionsNoAutosaveChange(Sender: TObject);
     procedure cbOptionsNoCharChange(Sender: TObject);
     procedure cbOptionsNoMsgChange(Sender: TObject);
     procedure cbOptionsOpenLastFileChange(Sender: TObject);
+    procedure edOptLineSpaceChange(Sender: TObject);
+    procedure edOptParSpaceChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: char);
     procedure tbOptionsFormTransChange(Sender: TObject);
@@ -98,7 +108,7 @@ var
 
 implementation
 
-uses Unit1, Unit2, Unit3, Unit4, Unit5, Unit6, Unit8, Unit9, UnitCopyright;
+uses Unit1, Unit2, Unit3, Unit4, Unit5, Unit6, Unit8, Unit9, Unit10, UnitCopyright;
 
 { TfmOptions }
 
@@ -128,9 +138,28 @@ begin
       DefFontName := fdFontGenDialog.Font.Name;
       DefFontSize := fdFontGenDialog.Font.Size;
       dbText.SetDefaultFont(DefFontName, DefFontSize + ZoomFontSize);
-      lbOptionsFont.Caption := cpt044 + ' ' + DefFontName +
-        ', ' + IntToStr(DefFontSize) + ' ' + cpt045;
+      lbOptionsFont.Caption :=
+        cpt044 + ' ' + DefFontName + ', ' + IntToStr(DefFontSize) + ' ' + cpt045;
     end;
+  end;
+end;
+
+procedure TfmOptions.edOptParSpaceChange(Sender: TObject);
+begin
+  // Set paragraph space
+  fmMain.ParagraphSpace := StrToInt(edOptParSpace.Text);
+  fmMain.dbText.SetParagraphSpace(fmMain.ParagraphSpace);
+end;
+
+procedure TfmOptions.edOptLineSpaceChange(Sender: TObject);
+begin
+  // Set line space
+  fmMain.LineSpace := StrToInt(edOptLineSpace.Text);
+  fmMain.dbText.SetLineSpace(fmMain.LineSpace);
+  if StrToInt(edOptParSpace.Text) < StrToInt(edOptLineSpace.Text) then
+  begin
+    edOptParSpace.Text := edOptLineSpace.Text;
+    edOptParSpaceChange(nil);
   end;
 end;
 
@@ -158,6 +187,8 @@ begin
       fmCalendar.grCalGrid.FixedColor := clBtnFace;
     end;
     fmMain.dbSubComm.Color := fmMain.fdColorDialog.Color;
+    fmMain.meSearchCond.Color := fmMain.fdColorDialog.Color;
+    fmMain.lbTagsNames.Color := fmMain.fdColorDialog.Color;
     fmImpExp.Color := fmMain.fdColorDialog.Color;
     fmMoveNote.Color := fmMain.fdColorDialog.Color;
     fmCommentsSubjects.Color := fmMain.fdColorDialog.Color;
@@ -165,8 +196,8 @@ begin
     fmResizeImage.Color := fmMain.fdColorDialog.Color;
     fmLook.Color := fmMain.fdColorDialog.Color;
     fmCalendar.Color := fmMain.fdColorDialog.Color;
+    fmSetAlarm.Color := fmMain.fdColorDialog.Color;
     fmOptions.Color := fmMain.fdColorDialog.Color;
-    fmCopyright.Color := fmMain.fdColorDialog.Color;
     fmOptions.lbOptionsFormColor.Caption :=
       fmMain.cpt047 + ' ' + ColorToString(fmMain.fdColorDialog.Color);
   end;
@@ -181,7 +212,9 @@ begin
   fmMain.grActGrid.FixedColor := clBtnFace;
   fmMain.grFilter.FixedColor := clBtnFace;
   fmCalendar.grCalGrid.FixedColor := clBtnFace;
-  fmMain.dbSubComm.Color := clDefault;
+  fmMain.dbSubComm.Color := clForm;
+  fmMain.meSearchCond.Color := clForm;
+  fmMain.lbTagsNames.Color := clForm;
   fmImpExp.Color := clDefault;
   fmMoveNote.Color := clDefault;
   fmCommentsSubjects.Color := clDefault;
@@ -189,8 +222,8 @@ begin
   fmResizeImage.Color := clDefault;
   fmLook.Color := clDefault;
   fmCalendar.Color := clDefault;
+  fmSetAlarm.Color := clDefault;
   fmOptions.Color := clDefault;
-  fmCopyright.Color := clDefault;
   fmOptions.lbOptionsFormColor.Caption :=
     fmMain.cpt047 + ' clDefault';
 end;
@@ -207,8 +240,8 @@ begin
       if fmMain.sqSubjects.Active = True then
       begin
         if ((FileExistsUTF8(SyncFolder + DirectorySeparator +
-          ExtractFileName(sqNotes.FileName))) and (SyncFolder <>
-          ExtractFileDir(sqNotes.FileName))) then
+          ExtractFileName(sqNotes.FileName))) and
+          (SyncFolder <> ExtractFileDir(sqNotes.FileName))) then
         begin
           miToolsSyncDo.Enabled := True;
           tbToolsSyncDo.Enabled := True;
@@ -235,8 +268,8 @@ begin
   fmResizeImage.AlphaBlendValue := tbOptionsFormTrans.Position;
   fmLook.AlphaBlendValue := tbOptionsFormTrans.Position;
   fmCalendar.AlphaBlendValue := tbOptionsFormTrans.Position;
+  fmSetAlarm.AlphaBlendValue := tbOptionsFormTrans.Position;
   fmOptions.AlphaBlendValue := tbOptionsFormTrans.Position;
-  fmCopyright.AlphaBlendValue := tbOptionsFormTrans.Position;
 end;
 
 procedure TfmOptions.cbOptionsActivateTrayChange(Sender: TObject);
@@ -276,6 +309,12 @@ begin
   begin
     fmMain.SetCharCount(fmMain.flNoCharCount);
   end;
+end;
+
+procedure TfmOptions.cbOptionsNoAutosaveChange(Sender: TObject);
+begin
+  // Update no autosave
+  fmMain.flNoAutosave := cbOptionsNoAutosave.Checked;
 end;
 
 procedure TfmOptions.cbOptionsOpenLastFileChange(Sender: TObject);

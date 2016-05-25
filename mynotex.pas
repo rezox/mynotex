@@ -1,7 +1,7 @@
 // ***********************************************************************
 // ***********************************************************************
-// MyNotex 1.2
-// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2015.
+// MyNotex 1.4
+// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2016.
 // Free software released under GPL licence vers. 3.
 //
 // In this software is used TDBZVDateTimePicker component
@@ -37,10 +37,8 @@ uses
   Interfaces, // this includes the LCL widgetset
   Forms, Unit1, Unit2, Unit3, Unit4, UnitCopyright, sqlite3laz, ZVDateTimeCtrls,
   richmemopackage, printer4lazarus, memdslaz, runtimetypeinfocontrols, Unit5,
-  Unit6, Unit7, Unit8, Unit9
+  Unit6, Unit7, Unit8, Unit9, Unit10, Unit11
   { you can add units after this };
-
-{$IFDEF WINDOWS}{$R mynotex.rc}{$ENDIF}
 
 {$R *.res}
 
@@ -56,6 +54,8 @@ begin
   Application.CreateForm(TfmOptions, fmOptions);
   Application.CreateForm(TfmLook, fmLook);
   Application.CreateForm(TfmCalendar, fmCalendar);
+  Application.CreateForm(TfmSetAlarm, fmSetAlarm);
+  Application.CreateForm(TfmShowAlarm, fmShowAlarm);
   Application.Run;
 end.
 
