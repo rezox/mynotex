@@ -1,14 +1,15 @@
 object fmMain: TfmMain
-  Left = 498
+  Left = 187
   Height = 707
-  Top = 178
+  Top = 80
   Width = 1019
   ActiveControl = pnGridSubjects
   AllowDropFiles = True
   AlphaBlend = True
   Caption = 'MyNotex'
-  ClientHeight = 680
+  ClientHeight = 679
   ClientWidth = 1019
+  Color = clForm
   Icon.Data = {
     C23B00000000010001000000000001002000AC3B00001600000089504E470D0A
     1A0A0000000D4948445200000200000002000806000000F478D4FA00003B7349
@@ -500,7 +501,7 @@ object fmMain: TfmMain
   OnResize = FormResize
   OnShow = FormShow
   OnWindowStateChange = FormWindowStateChange
-  LCLVersion = '1.4.4.0'
+  LCLVersion = '1.6.4.0'
   object imBackground: TImage
     Left = 177
     Height = 468
@@ -1107,7 +1108,7 @@ object fmMain: TfmMain
   end
   object sbStatusBar: TStatusBar
     Left = 0
-    Height = 23
+    Height = 22
     Top = 657
     Width = 1019
     Panels = <    
@@ -1161,6 +1162,8 @@ object fmMain: TfmMain
       BevelOuter = bvNone
       ClientHeight = 150
       ClientWidth = 344
+      Color = clForm
+      ParentColor = False
       TabOrder = 0
       object lbFound: TLabel
         Left = 8
@@ -1173,7 +1176,7 @@ object fmMain: TfmMain
       end
       object cbFindKind: TComboBox
         Left = 8
-        Height = 29
+        Height = 32
         Top = 3
         Width = 328
         ItemHeight = 0
@@ -1381,12 +1384,13 @@ object fmMain: TfmMain
   end
   object pnNotes: TPanel
     Left = 177
-    Height = 468
-    Top = 34
+    Height = 463
+    Top = 39
     Width = 842
     Align = alClient
+    BorderSpacing.Top = 5
     BevelOuter = bvNone
-    ClientHeight = 468
+    ClientHeight = 463
     ClientWidth = 842
     TabOrder = 1
     object pnNotesTop: TPanel
@@ -1584,24 +1588,24 @@ object fmMain: TfmMain
     end
     object spSplitterNotes: TSplitter
       Left = 172
-      Height = 331
+      Height = 326
       Top = 137
       Width = 5
     end
     object pnTextTags: TPanel
       Left = 177
-      Height = 331
+      Height = 326
       Top = 137
       Width = 665
       Align = alClient
       BevelOuter = bvNone
-      ClientHeight = 331
+      ClientHeight = 326
       ClientWidth = 665
       TabOrder = 1
       object pnFindText: TPanel
         Left = 0
         Height = 34
-        Top = 101
+        Top = 96
         Width = 665
         Align = alBottom
         BevelOuter = bvNone
@@ -1642,7 +1646,7 @@ object fmMain: TfmMain
       end
       object pnAttachments: TPanel
         Left = 459
-        Height = 95
+        Height = 90
         Top = 0
         Width = 200
         Align = alRight
@@ -1650,7 +1654,7 @@ object fmMain: TfmMain
         BorderSpacing.Right = 6
         BorderSpacing.Bottom = 6
         BevelOuter = bvNone
-        ClientHeight = 95
+        ClientHeight = 90
         ClientWidth = 200
         TabOrder = 2
         object lbListTags: TLabel
@@ -1667,7 +1671,7 @@ object fmMain: TfmMain
         end
         object lbTagsNames: TListBox
           Left = 0
-          Height = 71
+          Height = 66
           Top = 24
           Width = 200
           Align = alClient
@@ -1682,7 +1686,7 @@ object fmMain: TfmMain
       end
       object spSplitterAtt: TSplitter
         Left = 448
-        Height = 101
+        Height = 96
         Top = 0
         Width = 5
         Align = alRight
@@ -1690,18 +1694,18 @@ object fmMain: TfmMain
       end
       object pnText: TPanel
         Left = 0
-        Height = 101
+        Height = 96
         Top = 0
         Width = 448
         Align = alClient
         BevelOuter = bvNone
-        ClientHeight = 101
+        ClientHeight = 96
         ClientWidth = 448
         TabOrder = 0
         object dbText: TRichMemo
           Cursor = crIBeam
           Left = 6
-          Height = 95
+          Height = 90
           Top = 0
           Width = 436
           Align = alClient
@@ -1742,7 +1746,7 @@ object fmMain: TfmMain
           Visible = False
           object lbPwdTop: TLabel
             Left = 0
-            Height = 21
+            Height = 20
             Top = 7
             Width = 250
             Alignment = taCenter
@@ -1754,7 +1758,7 @@ object fmMain: TfmMain
           end
           object lbPwdBottom: TLabel
             Left = 0
-            Height = 21
+            Height = 20
             Top = 71
             Width = 250
             Alignment = taCenter
@@ -1768,7 +1772,7 @@ object fmMain: TfmMain
           end
           object edPassword: TEdit
             Left = 20
-            Height = 33
+            Height = 37
             Top = 35
             Width = 208
             Anchors = [akTop, akLeft, akRight]
@@ -1791,6 +1795,10 @@ object fmMain: TfmMain
           PrintSettings.MarginTop = 0.5
           PrintSettings.MarginRight = 0.5
           PrintSettings.MarginBottom = 0.5
+          PrintSettings.Preview.Left = 480
+          PrintSettings.Preview.Top = 270
+          PrintSettings.Preview.Width = 1440
+          PrintSettings.Preview.Height = 810
           TabOrder = 2
           Visible = False
         end
@@ -1798,7 +1806,7 @@ object fmMain: TfmMain
       object pnActivities: TPanel
         Left = 0
         Height = 191
-        Top = 140
+        Top = 135
         Width = 665
         Align = alBottom
         BevelOuter = bvNone
@@ -2040,9 +2048,9 @@ object fmMain: TfmMain
             TabOrder = 1
             object lbCalAct: TLabel
               Left = 9
-              Height = 21
+              Height = 20
               Top = 8
-              Width = 129
+              Width = 116
               Caption = 'Default start date:'
               ParentColor = False
             end
@@ -2076,9 +2084,9 @@ object fmMain: TfmMain
             end
             object lbActDates: TLabel
               Left = 369
-              Height = 21
+              Height = 20
               Top = 8
-              Width = 67
+              Width = 62
               Caption = 'No dates.'
               ParentColor = False
             end
@@ -2089,7 +2097,7 @@ object fmMain: TfmMain
         Cursor = crVSplit
         Left = 0
         Height = 5
-        Top = 135
+        Top = 130
         Width = 665
         Align = alBottom
         ResizeAnchor = akBottom
@@ -2098,17 +2106,17 @@ object fmMain: TfmMain
     end
     object pnSubNotesGrid: TPanel
       Left = 0
-      Height = 331
+      Height = 326
       Top = 137
       Width = 172
       Align = alLeft
       BevelOuter = bvNone
-      ClientHeight = 331
+      ClientHeight = 326
       ClientWidth = 172
       TabOrder = 3
       object grTitles: TStringGrid
         Left = 0
-        Height = 285
+        Height = 280
         Top = 0
         Width = 172
         Align = alClient
@@ -2128,7 +2136,7 @@ object fmMain: TfmMain
       object pnBtnNotes: TPanel
         Left = 0
         Height = 40
-        Top = 285
+        Top = 280
         Width = 172
         Align = alBottom
         BorderSpacing.Bottom = 6
@@ -2334,6 +2342,7 @@ object fmMain: TfmMain
     AutoSize = True
     ButtonHeight = 32
     ButtonWidth = 32
+    EdgeBorders = [ebBottom]
     Images = ilImageListToolbar
     ParentShowHint = False
     ShowHint = True
@@ -2342,14 +2351,14 @@ object fmMain: TfmMain
     object tbFileNew: TToolButton
       Left = 1
       Hint = 'File - New...'
-      Top = 2
+      Top = 0
       ImageIndex = 0
       OnClick = miFileNewClick
     end
     object tbFileOpen: TToolButton
       Left = 33
       Hint = 'File - Open...'
-      Top = 2
+      Top = 0
       Caption = 'tbFileOpen'
       ImageIndex = 1
       OnClick = miFileOpenClick
@@ -2357,7 +2366,7 @@ object fmMain: TfmMain
     object tbFileSave: TToolButton
       Left = 65
       Hint = 'File - Save'
-      Top = 2
+      Top = 0
       Caption = 'tbFileSave'
       ImageIndex = 2
       OnClick = miFileSaveClick
@@ -2365,7 +2374,7 @@ object fmMain: TfmMain
     object tbSubjectNew: TToolButton
       Left = 102
       Hint = 'Subjects - New'
-      Top = 2
+      Top = 0
       Caption = 'tbSubjectNew'
       ImageIndex = 3
       OnClick = miSubjectNewClick
@@ -2373,7 +2382,7 @@ object fmMain: TfmMain
     object tbNotesNew: TToolButton
       Left = 134
       Hint = 'Notes - New'
-      Top = 2
+      Top = 0
       Caption = 'tbNotesNew'
       ImageIndex = 4
       OnClick = miNotesNewClick
@@ -2381,7 +2390,7 @@ object fmMain: TfmMain
     object ToolButton7: TToolButton
       Left = 166
       Height = 32
-      Top = 2
+      Top = 0
       Width = 5
       Caption = 'ToolButton7'
       Style = tbsDivider
@@ -2389,7 +2398,7 @@ object fmMain: TfmMain
     object tbToolsSyncDo: TToolButton
       Left = 171
       Hint = 'Tools - Syncronization'
-      Top = 2
+      Top = 0
       Caption = 'tbToolsSyncDo'
       ImageIndex = 5
       OnClick = miToolsSyncDoClick
@@ -2397,7 +2406,7 @@ object fmMain: TfmMain
     object ToolButton4: TToolButton
       Left = 97
       Height = 32
-      Top = 2
+      Top = 0
       Width = 5
       Caption = 'ToolButton4'
       Style = tbsDivider
@@ -2405,7 +2414,7 @@ object fmMain: TfmMain
     object ToolButton1: TToolButton
       Left = 478
       Height = 32
-      Top = 2
+      Top = 0
       Width = 5
       Caption = 'ToolButton1'
       Style = tbsDivider
@@ -2413,7 +2422,7 @@ object fmMain: TfmMain
     object tbFontBold: TToolButton
       Left = 483
       Hint = 'Bold'
-      Top = 2
+      Top = 0
       Caption = 'tbFontBold'
       ImageIndex = 13
       OnClick = SetFontFormat
@@ -2422,7 +2431,7 @@ object fmMain: TfmMain
     object tbFontUnderline: TToolButton
       Left = 547
       Hint = 'Underline'
-      Top = 2
+      Top = 0
       Caption = 'tbFontUnderline'
       ImageIndex = 15
       OnClick = SetFontFormat
@@ -2431,7 +2440,7 @@ object fmMain: TfmMain
     object tbKindFontChange: TToolButton
       Left = 346
       Hint = 'Change font type'
-      Top = 2
+      Top = 0
       Caption = 'tbKindFontChange'
       DropdownMenu = pmFontKind
       ImageIndex = 10
@@ -2441,7 +2450,7 @@ object fmMain: TfmMain
     object tbFontItalic: TToolButton
       Left = 515
       Hint = 'Italic'
-      Top = 2
+      Top = 0
       Caption = 'tbFontItalic'
       ImageIndex = 14
       OnClick = SetFontFormat
@@ -2450,7 +2459,7 @@ object fmMain: TfmMain
     object tbFontStrike: TToolButton
       Left = 579
       Hint = 'Strikethrough'
-      Top = 2
+      Top = 0
       Caption = 'tbFontStrike'
       ImageIndex = 16
       OnClick = SetFontFormat
@@ -2459,7 +2468,7 @@ object fmMain: TfmMain
     object ToolButton10: TToolButton
       Left = 203
       Height = 32
-      Top = 2
+      Top = 0
       Width = 10
       Caption = 'ToolButton10'
       Style = tbsSeparator
@@ -2467,7 +2476,7 @@ object fmMain: TfmMain
     object tbColorFontChange: TToolButton
       Left = 390
       Hint = 'Change font color'
-      Top = 2
+      Top = 0
       Caption = 'tbColorFontChange'
       DropdownMenu = pmColorFormatting
       ImageIndex = 11
@@ -2477,7 +2486,7 @@ object fmMain: TfmMain
     object ToolButton2: TToolButton
       Left = 611
       Height = 32
-      Top = 2
+      Top = 0
       Width = 5
       Caption = 'ToolButton2'
       Style = tbsDivider
@@ -2485,7 +2494,7 @@ object fmMain: TfmMain
     object tbFontRestore: TToolButton
       Left = 616
       Hint = 'Restore default font'
-      Top = 2
+      Top = 0
       Caption = 'tbFontRestore'
       DropdownMenu = pmHeadings
       ImageIndex = 17
@@ -2495,7 +2504,7 @@ object fmMain: TfmMain
     object ToolButton3: TToolButton
       Left = 837
       Height = 32
-      Top = 2
+      Top = 0
       Width = 5
       Caption = 'ToolButton3'
       Style = tbsDivider
@@ -2503,7 +2512,7 @@ object fmMain: TfmMain
     object tbOpenNote: TToolButton
       Left = 842
       Hint = 'Open text with a word processor'
-      Top = 2
+      Top = 0
       Caption = 'tbOpenNote'
       DropdownMenu = pmWordProcessor
       ImageIndex = 23
@@ -2513,7 +2522,7 @@ object fmMain: TfmMain
     object tbBackColorFontChange: TToolButton
       Left = 434
       Hint = 'Change background color'
-      Top = 2
+      Top = 0
       Caption = 'tbBackColorFontChange'
       DropdownMenu = pmBackColorFormatting
       ImageIndex = 12
@@ -2523,7 +2532,7 @@ object fmMain: TfmMain
     object tbAlignLeft: TToolButton
       Left = 665
       Hint = 'Left'
-      Top = 2
+      Top = 0
       Caption = 'tbAlignLeft'
       ImageIndex = 18
       OnClick = SetFontFormat
@@ -2532,7 +2541,7 @@ object fmMain: TfmMain
     object ToolButton6: TToolButton
       Left = 660
       Height = 32
-      Top = 2
+      Top = 0
       Width = 5
       Caption = 'ToolButton6'
       Style = tbsDivider
@@ -2540,7 +2549,7 @@ object fmMain: TfmMain
     object tbAlignCenter: TToolButton
       Left = 697
       Hint = 'Center'
-      Top = 2
+      Top = 0
       Caption = 'tbAlignCenter'
       ImageIndex = 19
       OnClick = SetFontFormat
@@ -2549,7 +2558,7 @@ object fmMain: TfmMain
     object tbAlignFill: TToolButton
       Left = 761
       Hint = 'Justified'
-      Top = 2
+      Top = 0
       Caption = 'tbAlignFill'
       ImageIndex = 21
       OnClick = SetFontFormat
@@ -2558,7 +2567,7 @@ object fmMain: TfmMain
     object tbAlignRight: TToolButton
       Left = 729
       Hint = 'Right'
-      Top = 2
+      Top = 0
       Caption = 'tbAlignRight'
       ImageIndex = 20
       OnClick = SetFontFormat
@@ -2567,7 +2576,7 @@ object fmMain: TfmMain
     object tbAlignIndent: TToolButton
       Left = 793
       Hint = 'Indented'
-      Top = 2
+      Top = 0
       Caption = 'tbAlignIndent'
       DropdownMenu = pmBulltes
       ImageIndex = 22
@@ -2577,7 +2586,7 @@ object fmMain: TfmMain
     object tbFind: TToolButton
       Left = 891
       Hint = 'Search'
-      Top = 2
+      Top = 0
       Caption = 'tbFind'
       ImageIndex = 24
       OnClick = miNotesFindClick
@@ -2585,7 +2594,7 @@ object fmMain: TfmMain
     object ToolButton5: TToolButton
       Left = 886
       Height = 32
-      Top = 2
+      Top = 0
       Width = 5
       Caption = 'ToolButton5'
       Style = tbsDivider
@@ -2593,7 +2602,7 @@ object fmMain: TfmMain
     object tbCut: TToolButton
       Left = 213
       Hint = 'Cut'
-      Top = 2
+      Top = 0
       Caption = 'tbCut'
       ImageIndex = 6
       OnClick = tbCutClick
@@ -2601,7 +2610,7 @@ object fmMain: TfmMain
     object tbCopy: TToolButton
       Left = 245
       Hint = 'Copy'
-      Top = 2
+      Top = 0
       Caption = 'tbCopy'
       ImageIndex = 7
       OnClick = tbCopyClick
@@ -2609,7 +2618,7 @@ object fmMain: TfmMain
     object tbCopyHtml: TToolButton
       Left = 277
       Hint = 'Copy as HTML'
-      Top = 2
+      Top = 0
       Caption = 'tbCopyHtml'
       ImageIndex = 8
       OnClick = tbCopyHtmlClick
@@ -2617,7 +2626,7 @@ object fmMain: TfmMain
     object tbPaste: TToolButton
       Left = 309
       Hint = 'Paste'
-      Top = 2
+      Top = 0
       Caption = 'tbPaste'
       ImageIndex = 9
       OnClick = tbPasteClick
@@ -2625,7 +2634,7 @@ object fmMain: TfmMain
     object ToolButton13: TToolButton
       Left = 341
       Height = 32
-      Top = 2
+      Top = 0
       Width = 5
       Caption = 'ToolButton13'
       Style = tbsDivider
@@ -2633,17 +2642,18 @@ object fmMain: TfmMain
   end
   object pnGridSubjects: TPanel
     Left = 0
-    Height = 468
-    Top = 34
+    Height = 463
+    Top = 39
     Width = 172
     Align = alLeft
+    BorderSpacing.Top = 5
     BevelOuter = bvNone
-    ClientHeight = 468
+    ClientHeight = 463
     ClientWidth = 172
     TabOrder = 6
     object grSubjects: TDBGrid
       Left = 0
-      Height = 331
+      Height = 326
       Top = 0
       Width = 172
       Align = alClient
@@ -2670,7 +2680,7 @@ object fmMain: TfmMain
     object dbSubComm: TDBMemo
       Left = 6
       Height = 80
-      Top = 382
+      Top = 377
       Width = 160
       Align = alBottom
       BorderSpacing.Around = 6
@@ -2685,7 +2695,7 @@ object fmMain: TfmMain
       Cursor = crVSplit
       Left = 0
       Height = 5
-      Top = 371
+      Top = 366
       Width = 172
       Align = alBottom
       ResizeAnchor = akBottom
@@ -2693,7 +2703,7 @@ object fmMain: TfmMain
     object pnBtnSubjects: TPanel
       Left = 0
       Height = 40
-      Top = 331
+      Top = 326
       Width = 172
       Align = alBottom
       BevelOuter = bvNone
@@ -2938,6 +2948,10 @@ object fmMain: TfmMain
       object miFileHTML: TMenuItem
         Caption = 'Save as HTML...'
         OnClick = miFileImportClick
+      end
+      object miFileZim: TMenuItem
+        Caption = 'Save as .Zim'
+        OnClick = miFileZimClick
       end
       object miLine5: TMenuItem
         Caption = '-'
@@ -6025,7 +6039,7 @@ object fmMain: TfmMain
     Filter = 'Jpeg (*.jpg;*.jpeg)|*.jpg;*.jpeg;*.JPG;*.JPEG|Png (*.png)|*.png;*.PNG'
     Options = [ofFileMustExist, ofEnableSizing, ofViewDetail]
     left = 840
-    top = 288
+    top = 240
   end
   object pmBulltes: TPopupMenu
     left = 144

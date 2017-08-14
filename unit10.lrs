@@ -7,9 +7,9 @@ LazarusResources.Add('TfmSetAlarm','FORMDATA',[
   +'ClientHeight'#3#189#0#11'ClientWidth'#3#195#1#9'FormStyle'#7#11'fsStayOnTop'
   +#10'KeyPreview'#9#8'OnCreate'#7#10'FormCreate'#10'OnKeyPress'#7#12'FormKeyPr'
   +'ess'#6'OnShow'#7#8'FormShow'#8'Position'#7#14'poScreenCenter'#13'ShowInTask'
-  +'Bar'#7#7'stNever'#10'LCLVersion'#6#7'1.4.4.0'#0#17'TZVDateTimePicker'#7'tpA'
+  +'Bar'#7#7'stNever'#10'LCLVersion'#6#7'1.6.2.0'#0#17'TZVDateTimePicker'#7'tpA'
   +'larm'#4'Left'#3#233#0#6'Height'#2'4'#4'Hint'#6#18'Set the alarm time'#3'Top'
-  +#2'#'#5'Width'#3#183#0#11'CenturyFrom'#3#149#7#7'MaxDate'#5#0#0#0#0#0#4#146
+  +#2'#'#5'Width'#3#171#0#11'CenturyFrom'#3#149#7#7'MaxDate'#5#0#0#0#0#0#4#146
   +#180#20'@'#7'MinDate'#5#0#0#0#0#0#0#20#210#14#192#11'Font.Height'#2'$'#10'Pa'
   +'rentFont'#8#8'TabOrder'#2#0#17'TrailingSeparator'#8#15'TextForNullDate'#6#4
   +'NULL'#12'LeadingZeros'#9#4'Kind'#7#7'dtkTime'#10'TimeFormat'#7#4'tf12'#11'T'
@@ -804,8 +804,8 @@ LazarusResources.Add('TfmSetAlarm','FORMDATA',[
   +#27'$'#197'`'#194'&C'#20'9'#190#197'L'#250#146'15'#234'c>&'#10'@e'#7'K'#248
   +'R'#246#226''''#247'P'#225'"]'#203#176#4#196'Da'#9'1'#152#24#131'H'#151#205
   +'((((((8,'#252#0'b'#146#219#26#149'{'#147#195#0#0#0#0'IEND'#174'B`'#130#11'T'
-  +'ransparent'#9#0#0#9'TCheckBox'#7'cbAlarm'#4'Left'#3#233#0#6'Height'#2#25#4
-  +'Hint'#6#18'Activate the alarm'#3'Top'#2'^'#5'Width'#2'S'#7'Caption'#6#8'Act'
+  +'ransparent'#9#0#0#9'TCheckBox'#7'cbAlarm'#4'Left'#3#233#0#6'Height'#2#24#4
+  +'Hint'#6#18'Activate the alarm'#3'Top'#2'^'#5'Width'#2'M'#7'Caption'#6#8'Act'
   +'ivate'#8'OnChange'#7#13'cbAlarmChange'#8'TabOrder'#2#1#0#0#7'TButton'#9'bnO'
   +'KAlarm'#4'Left'#3';'#1#6'Height'#2#31#3'Top'#3#132#0#5'Width'#2'e'#7'Anchor'
   +'s'#11#7'akRight'#8'akBottom'#0#7'Caption'#6#2'OK'#11'ModalResult'#2#1#8'Tab'

@@ -17,26 +17,26 @@ object fmCommentsSubjects: TfmCommentsSubjects
   OnKeyPress = FormKeyPress
   Position = poScreenCenter
   ShowInTaskBar = stNever
-  LCLVersion = '1.4.4.0'
+  LCLVersion = '1.6.2.0'
   object lbSubName: TLabel
     Left = 24
-    Height = 21
+    Height = 20
     Top = 16
-    Width = 85
+    Width = 77
     Caption = 'Subject title'
     ParentColor = False
   end
   object lbComments: TLabel
     Left = 24
-    Height = 21
+    Height = 20
     Top = 80
-    Width = 75
+    Width = 69
     Caption = 'Comments'
     ParentColor = False
   end
   object dbSubName: TDBEdit
     Left = 24
-    Height = 33
+    Height = 37
     Top = 40
     Width = 502
     DataField = 'SubjectsName'

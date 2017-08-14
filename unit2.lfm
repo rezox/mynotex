@@ -15,12 +15,12 @@ object fmImpExp: TfmImpExp
   OnCreate = FormCreate
   Position = poScreenCenter
   ShowInTaskBar = stNever
-  LCLVersion = '1.4.4.0'
+  LCLVersion = '1.6.2.0'
   object lbSubjects: TLabel
     Left = 16
-    Height = 21
+    Height = 20
     Top = 16
-    Width = 59
+    Width = 55
     Caption = 'Subjects'
     ParentColor = False
   end
@@ -68,18 +68,18 @@ object fmImpExp: TfmImpExp
   end
   object cbDeleteData: TCheckBox
     Left = 16
-    Height = 25
-    Top = 338
-    Width = 301
+    Height = 24
+    Top = 339
+    Width = 273
     Anchors = [akLeft, akBottom]
     Caption = 'Delete imported data from original file.'
     TabOrder = 4
   end
   object cbSelDeselAll: TCheckBox
     Left = 16
-    Height = 25
-    Top = 304
-    Width = 183
+    Height = 24
+    Top = 305
+    Width = 172
     Anchors = [akLeft, akBottom]
     Caption = 'Select and deselect all'
     OnClick = cbSelDeselAllClick
@@ -87,9 +87,9 @@ object fmImpExp: TfmImpExp
   end
   object cbNoExpDate: TCheckBox
     Left = 16
-    Height = 25
-    Top = 338
-    Width = 115
+    Height = 24
+    Top = 339
+    Width = 106
     Anchors = [akLeft, akBottom]
     Caption = 'Export dates'
     TabOrder = 6

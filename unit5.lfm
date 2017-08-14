@@ -17,12 +17,12 @@ object fmEncryption: TfmEncryption
   OnShow = FormShow
   Position = poScreenCenter
   ShowInTaskBar = stNever
-  LCLVersion = '1.4.4.0'
+  LCLVersion = '1.6.2.0'
   object lbEncrypt: TLabel
     Left = 32
-    Height = 21
+    Height = 20
     Top = 24
-    Width = 247
+    Width = 224
     Caption = 'Insert password in the fields below'
     ParentColor = False
   end
@@ -48,7 +48,7 @@ object fmEncryption: TfmEncryption
   end
   object edPwd1: TEdit
     Left = 32
-    Height = 33
+    Height = 37
     Top = 64
     Width = 341
     EchoMode = emPassword
@@ -58,7 +58,7 @@ object fmEncryption: TfmEncryption
   end
   object edPwd2: TEdit
     Left = 32
-    Height = 33
+    Height = 37
     Top = 112
     Width = 341
     EchoMode = emPassword
@@ -68,9 +68,9 @@ object fmEncryption: TfmEncryption
   end
   object cbShowChar: TCheckBox
     Left = 32
-    Height = 25
+    Height = 24
     Top = 152
-    Width = 142
+    Width = 132
     Caption = 'Show characters'
     OnChange = cbShowCharChange
     TabOrder = 2

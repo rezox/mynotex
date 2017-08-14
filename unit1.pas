@@ -1,7 +1,7 @@
 // ***********************************************************************
 // ***********************************************************************
 // MyNotex 1.4
-// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2016.
+// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2017.
 // Free software released under GPL licence version 3 or later.
 
 // In this software is used DBZVDateTimePicker component
@@ -38,8 +38,8 @@ uses
   Graphics, Dialogs, Menus, ComCtrls, ExtCtrls, StdCtrls, Grids, DBGrids,
   DBCtrls, DBZVDateTimePicker, ZVDateTimePicker, RichMemo, WSRichMemo, IpHtml,
   Ipfilebroker, PrintersDlgs, DCPrijndael, DCPsha1, Inifiles, Variants, Zipper,
-  LCLProc, Process, LCLType, Clipbrd, Buttons, FileCtrl, ExtDlgs, types,
-  LCLIntf, OSPrinters, Dateutils;
+  LazUTF8, Process, LCLType, Clipbrd, Buttons, FileCtrl, ExtDlgs, types,
+  LCLIntf, EditBtn, Printers, Dateutils;
 
 type
   { TfmMain }
@@ -98,6 +98,7 @@ type
     lbTagsNames: TListBox;
     lbTitle: TLabel;
     meActNotes: TMemo;
+    miFileZim: TMenuItem;
     meSearchCond: TMemo;
     miToolsAlarm: TMenuItem;
     miLines21: TMenuItem;
@@ -405,6 +406,7 @@ type
     procedure lbTagsNamesDblClick(Sender: TObject);
     procedure lbTagsNamesExit(Sender: TObject);
     procedure meActNotesChange(Sender: TObject);
+    procedure miFileZimClick(Sender: TObject);
     procedure miToolsAlarmClick(Sender: TObject);
     procedure miFilePrinterSetupClick(Sender: TObject);
     procedure miNotesLookClick(Sender: TObject);
@@ -544,6 +546,7 @@ type
     procedure CreateDataTables(DataFileName: string);
     procedure DisableShowTextOnly;
     procedure EditNotesDataset;
+    function ExpTextToZim(NoteText: String): String;
     procedure FindData(SearchWithin: boolean);
     procedure LoadActivitiesData;
     function GetBullet: integer;
@@ -569,6 +572,7 @@ type
     procedure ShiftBackwardActDates;
     procedure ShiftForwardActDates;
     procedure ShowPasswordInput;
+    function SpaceToLine(stName: String): String;
     procedure StoreUndoData;
     procedure SyncDelRec(ReadFile, WriteFile: string);
     function SyncDelSubjectsNotes(ReadFile, WriteFile: string): integer;
@@ -603,7 +607,7 @@ type
     msg057, msg058, msg059, msg060, msg061, msg062, msg063, msg064,
     msg065, msg066, msg067, msg068, msg069, msg070, msg071, msg072,
     msg073, msg074, msg075, msg076, msg077, msg078, msg079, msg080,
-    msg081, msg082,
+    msg081, msg082, msg083, msg084,
     // Status bar messages
     sbr001, sbr002, sbr003, sbr004, sbr005, sbr006, sbr007, sbr008,
     sbr009, sbr010, sbr011,
@@ -662,12 +666,25 @@ type
     DateOrder: ShortString;
     // 24 hour format
     fl24Hour: boolean;
+    // Labels of the activity grid
+    lbID: string;
+    lbWbs: string;
+    lbState: string;
+    lbActivity: string;
+    lbStartDate: string;
+    lbEndDate: string;
+    lbDuration: string;
+    lbResources: string;
+    lbPriority: string;
+    lbCompletion: string;
+    lbCost: string;
+    lbNotes: string;
   end;
 
 var
   fmMain: TfmMain;
   // Version of the software for translation file
-  VersMyNt: string = '1.4.0';
+  VersMyNt: string = '1.4.1';
   // Last Database used
   LastDatabase1, LastDatabase2, LastDatabase3, LastDatabase4: string;
   // Delay (in days) before purging a record from the deleted record table
@@ -724,19 +741,6 @@ var
   IsGridEditing: boolean = False;
   FDate: TFormatSettings;
   DateMask: ShortString;
-  // Labels of the activity grid
-  lbID: string = 'ID';
-  lbWbs: string = 'WBS';
-  lbState: string = 'State';
-  lbActivity: string = 'Activity';
-  lbStartDate: string = 'Start date';
-  lbEndDate: string = 'End date';
-  lbDuration: string = 'Duration';
-  lbResources: string = 'Resources';
-  lbPriority: string = 'Priority';
-  lbCompletion: string = 'Completion';
-  lbCost: string = 'Cost';
-  lbNotes: string = 'Notes';
   // Note text cursor position, for undo
   iNoteTextPos: integer = 0;
   // Mail for pgp encryption
@@ -789,6 +793,19 @@ begin
   LineSpace := 0;
   // Open last file
   flOpenLastFile := False;
+  // Labels of the activity grid
+  lbID := 'ID';
+  lbWbs := 'WBS';
+  lbState := 'State';
+  lbActivity := 'Activity';
+  lbStartDate := 'Start date';
+  lbEndDate := 'End date';
+  lbDuration := 'Duration';
+  lbResources := 'Resources';
+  lbPriority := 'Priority';
+  lbCompletion := 'Completion';
+  lbCost := 'Cost';
+  lbNotes := 'Notes';
   //Initialize clipboard for activities
   ActivityGroup := TStringList.Create;
   // Initialize bookmarks list
@@ -1665,6 +1682,11 @@ begin
       Clipboard.AsText := StringReplace(Clipboard.AsText, ' ', '_', [rfReplaceAll]);
       Key := 0;
     end;
+  end
+  else if ((Key = Ord('B')) and (Shift = [ssCtrl, ssShift])) then
+  begin
+    tbToolBar.Visible := not tbToolBar.Visible;
+    Key := 0;
   end;
 end;
 
@@ -1931,6 +1953,18 @@ begin
     // To recenter it...
     Application.ProcessMessages;
     dbText.SetCursorMiddleScreen(dbText.CaretPos.Y);
+    dbText.GetTextAttributes(dbText.GetWordParagraphStartEnd(dbText.SelStart,
+      False, True), fp);
+    if fp.Indented > DefaultIndent then
+    begin
+      NewItemBullet := GetBullet;
+      if NewItemBullet = 2 then
+        dbText.ListNumber(dbText.SelStart, WidthInden, '1')
+      else if NewItemBullet = 3 then
+        dbText.ListNumber(dbText.SelStart, WidthInden, 'A')
+      else if NewItemBullet = 4 then
+        dbText.ListNumber(dbText.SelStart, WidthInden, 'a');
+    end;
     EditNotesDataset;
     key := 0;
   end;
@@ -1944,6 +1978,18 @@ begin
     // To recenter it...
     Application.ProcessMessages;
     dbText.SetCursorMiddleScreen(dbText.CaretPos.Y);
+    dbText.GetTextAttributes(dbText.GetWordParagraphStartEnd(dbText.SelStart,
+      False, True), fp);
+    if fp.Indented > DefaultIndent then
+    begin
+      NewItemBullet := GetBullet;
+      if NewItemBullet = 2 then
+        dbText.ListNumber(dbText.SelStart, WidthInden, '1')
+      else if NewItemBullet = 3 then
+        dbText.ListNumber(dbText.SelStart, WidthInden, 'A')
+      else if NewItemBullet = 4 then
+        dbText.ListNumber(dbText.SelStart, WidthInden, 'a');
+    end;
     EditNotesDataset;
     key := 0;
   end;
@@ -3378,6 +3424,124 @@ begin
     end;
     sqReadSubjects.First;
     ShowModal;
+  end;
+end;
+
+procedure TfmMain.miFileZimClick(Sender: TObject);
+  var sqZimSubjects, sqZimNotes: TSqlite3Dataset;
+    slTextPage, slFilesList, slAttList: TStringList;
+    stOutputDir: String;
+    i: Integer;
+begin
+  if MessageDlg(msg083, mtConfirmation,
+    [mbOK, mbCancel], 0) = mrCancel then Exit;
+  try
+    Screen.Cursor := crHourGlass;
+    Application.ProcessMessages;
+    slFilesList := TStringList.Create;
+    slTextPage := TStringList.Create;
+    slAttList := TStringList.Create;
+    sqZimSubjects := TSqlite3Dataset.Create(Self);
+    sqZimNotes := TSqlite3Dataset.Create(Self);
+    stOutputDir := SpaceToLine(ExtractFileNameWithoutExt(
+      sqSubjects.FileName) + '_Zim');
+    CreateDirUTF8(stOutputDir);
+    if DirectoryExistsUTF8(ExtractFileNameWithoutExt(sqSubjects.FileName)) = True then
+    begin
+      CreateDirUTF8(stOutputDir + DirectorySeparator + 'ExportZimFiles');
+      slFilesList := FindAllFiles(
+        ExtractFileNameWithoutExt(sqSubjects.FileName) + DirectorySeparator,
+        '*.jpeg;*.jpg;*.png;*.zip', True);
+      for i := 0 to slFilesList.Count - 1 do
+      begin
+        CopyFile(slFilesList[i],
+          stOutputDir + DirectorySeparator + 'ExportZimFiles' +
+          DirectorySeparator + ExtractFileName(slFilesList[i]));
+      end;
+    end;
+    sqZimSubjects.FileName := sqSubjects.FileName;
+    sqZimSubjects.TableName := 'Subjects';
+    sqZimSubjects.PrimaryKey := 'IDSubjects';
+    sqZimSubjects.SQL := 'Select * from Subjects';
+    sqZimSubjects.Open;
+    sqZimNotes.FileName := sqNotes.FileName;
+    sqZimNotes.TableName := 'Notes';
+    sqZimNotes.PrimaryKey := 'IDNotes';
+    try
+      while not sqZimSubjects.EOF do
+      begin
+        slTextPage.Clear;
+        slTextPage.Add('Content-Type: text/x-zim-wiki');
+        slTextPage.Add('Wiki-Format: zim 0.4');
+        slTextPage.Add('Creation-Date: ' +
+          FormatDateTime('yyyy-mm-dd"T"hh:nn:ss',
+          sqZimSubjects.FieldByName('SubjectsDTMod').AsDateTime));
+        slTextPage.Add('');
+        slTextPage.Add('====== ' +
+          sqZimSubjects.FieldByName('SubjectsName').AsString + ' ======');
+        slTextPage.Add('Created ' +
+          FormatDateTime('dddd dd mmmm yyyy',
+          sqZimSubjects.FieldByName('SubjectsDTMod').AsDateTime));
+        slTextPage.Add('');
+        slTextPage.Add(sqZimSubjects.FieldByName('SubjectsComments').AsString);
+        slTextPage.SaveToFile(SpaceToLine(stOutputDir + DirectorySeparator +
+          sqZimSubjects.FieldByName('SubjectsName').AsString + '.txt'));
+        CreateDirUTF8(SpaceToLine(stOutputDir + DirectorySeparator +
+          sqZimSubjects.FieldByName('SubjectsName').AsString));
+        sqZimNotes.SQL := 'Select * from Notes where ' +
+          'Notes.ID_Subjects = ' + sqZimSubjects.FieldByName('IDSubjects'). AsString;
+        sqZimNotes.Open;
+        while not sqZimNotes.EOF do
+        begin;
+          slTextPage.Clear;
+          slTextPage.Add('Content-Type: text/x-zim-wiki');
+          slTextPage.Add('Wiki-Format: zim 0.4');
+          slTextPage.Add('Creation-Date: ' +
+            FormatDateTime('yyyy-mm-dd"T"hh:nn:ss',
+            sqZimNotes.FieldByName('NotesDTMod').AsDateTime));
+          slTextPage.Add('');
+          slTextPage.Add('====== ' +
+            sqZimNotes.FieldByName('NotesTitle').AsString + ' ======');
+          slTextPage.Add('Created ' +
+            FormatDateTime('dddd dd mmmm yyyy',
+            sqZimNotes.FieldByName('NotesDate').AsDateTime));
+          if sqZimNotes.FieldByName('NotesAttName').AsString <> '' then
+          begin
+            slTextPage.Add('');
+            slAttList.Text := sqZimNotes.FieldByName('NotesAttName').AsString;
+            for i := 0 to slAttList.Count - 1 do
+            begin
+              slAttList[i] := ExtractFileNameWithoutExt(slAttList[i]) + '.zip';
+              slTextPage.Add('[[..' + DirectorySeparator + '..' +
+                DirectorySeparator + 'ExportZimFiles' + DirectorySeparator +
+                sqZimNotes.FieldByName('NotesUID').AsString +
+                '-' + slAttList[i] +'|' + slAttList[i] + ']]');
+            end;
+          end;
+          slTextPage.Add('');
+          slTextPage.Add(ExpTextToZim(
+            sqZimNotes.FieldByName('NotesText').AsString));
+          slTextPage.SaveToFile(SpaceToLine(stOutputDir + DirectorySeparator +
+            sqZimSubjects.FieldByName('SubjectsName').AsString +
+            DirectorySeparator +
+            sqZimNotes.FieldByName('NotesTitle').AsString + '.txt'));
+          sqZimNotes.Next
+        end;
+        sqZimNotes.Close;
+        sqZimSubjects.Next;
+        Application.ProcessMessages;
+      end;
+      MessageDlg(msg024, mtInformation, [mbOK], 0);
+    except
+       MessageDlg(msg084, mtWarning, [mbOK], 0);
+    end;
+  finally
+    slTextPage.Free;
+    slFilesList.Free;
+    slAttList.Free;
+    sqZimSubjects.Free;
+    sqZimNotes.Free;
+    Screen.Cursor := crDefault;
   end;
 end;
 
@@ -6029,6 +6193,7 @@ var
   flNumList: boolean = False;
   AttReadDir, AttWriteDir: string;
   myHTMLList: TStringList;
+  MyPrinter: TPrinter;
 begin
   // Open text with word processor or print
   Screen.Cursor := crHourGlass;
@@ -6282,6 +6447,8 @@ begin
       MessageDlg(msg071, mtInformation, [mbOK], 0);
       Abort;
     end;
+    MyPrinter := Printer;
+    if MyPrinter.Printers.Count > 0 then
     try
       try
         myHTMLList := TStringList.Create;
@@ -7423,10 +7590,12 @@ begin
           sqNotes.FieldByName('IDNotes').AsInteger then
           // ... load the text ...
           sqNotesAfterScroll(nil)
-        // ... otherwise move the cursor and load the text
+        // ... otherwise move the cursor and load the text...
         else
-          sqNotes.Locate('IDNotes',
-            sqSetId.FieldByName('IDLastNote').AsInteger, []);
+          if sqNotes.Locate('IDNotes',
+            sqSetId.FieldByName('IDLastNote').AsInteger, []) = False then
+        // ... or open it anyway
+            sqNotesAfterScroll(nil);
       end;
       sqSetId.Close;
     finally
@@ -7461,6 +7630,7 @@ begin
   miFileImport.Enabled := True;
   miFileExport.Enabled := True;
   miFileHTML.Enabled := True;
+  miFileZim.Enabled := True;
   miFileConvert.Enabled := True;
   miNotesOrderBy.Enabled := True;
   miOrderByDate.Enabled := True;
@@ -7616,6 +7786,7 @@ begin
   miFileExport.Enabled := False;
   miFileConvert.Enabled := False;
   miFileHTML.Enabled := False;
+  miFileZim.Enabled := False;
   miSubjectNew.Enabled := False;
   tbSubjectNew.Enabled := False;
   miSubjectDelete.Enabled := False;
@@ -7773,6 +7944,14 @@ begin
       Exit;
     end;
   end;
+  if SearchWithin = False then
+    meSearchCond.Clear;
+  if meSearchCond.Lines.IndexOf(cbFindKind.Text + ' "' +
+    edFindText.Text + '"') > -1 then
+  begin
+    Exit;
+  end;
+  meSearchCond.Lines.Add(cbFindKind.Text + ' "' + edFindText.Text + '"');
   StDest := '';
   // If tag is searched, clean the field
   if cbFindKind.ItemIndex = 5 then
@@ -8198,9 +8377,6 @@ begin
     edLocateText.Text := edFindText.Text;
   end;
   lbFound.Caption := cpt015 + ' ' + IntToStr(sqFind.RecordCount);
-  if SearchWithin = False then
-    meSearchCond.Clear;
-  meSearchCond.Lines.Add(cbFindKind.Text + ' "' + edFindText.Text + '"');
   // There's no way to set focus on the grfilter grid.
   // Following code does not work
   pnFind.SetFocus;
@@ -8902,6 +9078,7 @@ begin
   meActNotes.Clear;
   EditNotesDataset;
   LastRowAct := 1;
+  lbActDates.Caption := cpt094 + '.';
 end;
 
 // ******************* GRID ACTIVITIES EVENTS **********************************
@@ -10513,6 +10690,116 @@ begin
   miNotesUndo.Enabled := False;
 end;
 
+function TfmMain.ExpTextToZim(NoteText: String): String;
+  var i: Integer;
+    flTag: Boolean;
+    slResLines: TStringList;
+begin
+  NoteText := StringReplace(NoteText, '<b> ', '<b>',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, '<b>', '**',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, ' </b>', '</b>',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, '</b>', '**',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, '<i> ', '<i>',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, '<i>', '//',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, ' </i>', '</i>',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, '</i>', '//',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, '<u> ', '<u>',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, '<u>', '//',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, ' </u>', '</u>',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, '</u>', '//',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, '<strike> ', '<strike>',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, '<strike>', '~~',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, ' </strike>', '</strike>',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, '</strike>', '~~',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, '<span style="background', '__<',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, '</span>', '__',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, '<IMG SRC="', '{{..' +
+    DirectorySeparator + '..' + DirectorySeparator +
+    'ExportZimFiles' + DirectorySeparator,
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, '.jpeg">', '.jpeg}}',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, '.jpg">', '.jpg}}',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, '.png">', '.png}}',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, LineEnding, '',
+    [rfIgnoreCase, rfReplaceAll]);
+  NoteText := StringReplace(NoteText, '<p align=', LineEnding + '<',
+    [rfIgnoreCase, rfReplaceAll]);
+  flTag := False;
+  Result := '';
+  for i := 1 to UTF8Length(NoteText) do
+  begin
+    if UTF8Copy(NoteText, i, 1) = '<' then
+      flTag := True
+    else if UTF8Copy(NoteText, i, 1) = '>' then
+      flTag := False
+    else if flTag = False then
+      Result := Result + UTF8Copy(NoteText, i, 1);
+  end;
+  Result := StringReplace(Result, '•' + #8, '• ',
+    [rfIgnoreCase, rfReplaceAll]);
+  Result := StringReplace(Result, '.' + #8, '. ',
+    [rfIgnoreCase, rfReplaceAll]);
+  try
+    slResLines := TStringList.Create;
+    slResLines.Text := Result;
+    i := 0;
+    while i < slResLines.Count do
+    begin
+      if slResLines[i] = '**' then
+      begin
+        slResLines[i] := '';
+        Inc(i);
+        slResLines[i] := '**' + slResLines[i];
+      end
+      else if slResLines[i] = '//' then
+      begin
+        slResLines[i] := '';
+        Inc(i);
+        slResLines[i] := '//' + slResLines[i];
+      end
+      else if slResLines[i] = '~~' then
+      begin
+        slResLines[i] := '';
+        Inc(i);
+        slResLines[i] := '~~' + slResLines[i];
+      end
+      else
+      begin
+        Inc(i);
+      end;
+    end;
+    Result := slResLines.Text;
+  finally
+    slResLines.Free;
+  end;
+end;
+
+function TfmMain.SpaceToLine(stName: String): String;
+begin
+  Result := StringReplace(stName, ' ', '_', [rfReplaceAll]);
+end;
+
 // *****************************************************************************
 // ************************* COMMON SYNC PROCEDURES ****************************
 // *****************************************************************************
@@ -11206,6 +11493,8 @@ begin
       msg080 := MyIni.ReadString('mynotex', 'msg080', '');
       msg081 := MyIni.ReadString('mynotex', 'msg081', '');
       msg082 := MyIni.ReadString('mynotex', 'msg082', '');
+      msg083 := MyIni.ReadString('mynotex', 'msg083', '');
+      msg084 := MyIni.ReadString('mynotex', 'msg084', '');
       // Status bar messages
       sbr001 := MyIni.ReadString('mynotex', 'sbr001', '');
       sbr002 := MyIni.ReadString('mynotex', 'sbr002', '');
@@ -11402,6 +11691,7 @@ begin
       // Item deleted from version 1.1 of MyNotex
       // miToolsFormColor.Caption := MyIni.ReadString('mynotex','cpn050','');
       miFileHTML.Caption := MyIni.ReadString('mynotex', 'cpn051', '');
+      miFileZim.Caption := MyIni.ReadString('mynotex', 'cpn151', '');
       miNotesMove.Caption := MyIni.ReadString('mynotex', 'cpn052', '');
       miSubjectComments.Caption := MyIni.ReadString('mynotex', 'cpn053', '');
       pmSubComments.Caption := MyIni.ReadString('mynotex', 'cpn053', '');
@@ -11502,6 +11792,7 @@ begin
       bnNotesDown.Hint := MyIni.ReadString('mynotex', 'cpn114', '');
       bnFind.Hint := MyIni.ReadString('mynotex', 'cpn149', '');
       bnFind2.Hint := MyIni.ReadString('mynotex', 'cpn150', '');
+      miFileZim.Caption := MyIni.ReadString('mynotex', 'cpn151', '');
       // Hints in dbNavigator
       if MyIni.ReadString('mynotex', 'cpn145', '') <> '' then
       begin
@@ -11674,6 +11965,8 @@ begin
     msg080 := 'The date * is not in the right format.';
     msg081 := 'It''s';
     msg082 := 'left';
+    msg083 := 'Export the current file as a Zim archive?';
+    msg084 := 'It was not possibile to export the file as a Zim archive.';
     // Status bar messages
     sbr001 := 'Editing note.';
     sbr002 := 'No notes.';

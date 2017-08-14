@@ -17,12 +17,12 @@ object fmMoveNote: TfmMoveNote
   OnKeyPress = FormKeyPress
   Position = poScreenCenter
   ShowInTaskBar = stNever
-  LCLVersion = '1.4.4.0'
+  LCLVersion = '1.6.2.0'
   object lbMoveNoteSub: TLabel
     Left = 24
-    Height = 21
+    Height = 20
     Top = 16
-    Width = 313
+    Width = 288
     Caption = 'Link the current note to the selected subject.'
     ParentColor = False
   end

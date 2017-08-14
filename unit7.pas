@@ -1,7 +1,7 @@
 // ***********************************************************************
 // ***********************************************************************
 // MyNotex 1.4
-// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2016.
+// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2017.
 // Free software released under GPL licence version 3 or later.
 
 // In this software is used DBZVDateTimePicker component
@@ -206,7 +206,7 @@ end;
 procedure TfmOptions.bnOptionsFormClDefClick(Sender: TObject);
 begin
   // Set default color
-  fmMain.Color := clDefault;
+  fmMain.Color := clForm;
   fmMain.grSubjects.FixedColor := clBtnFace;
   fmMain.grTitles.FixedColor := clBtnFace;
   fmMain.grActGrid.FixedColor := clBtnFace;

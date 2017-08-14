@@ -1,7 +1,7 @@
 // ***********************************************************************
 // ***********************************************************************
 // MyNotex 1.4
-// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2016.
+// Author and copyright: Massimo Nardello, Modena (Italy) 2010-2017.
 // Free software released under GPL licence version 3 or later.
 
 // In this software is used DBZVDateTimePicker component
@@ -638,17 +638,17 @@ begin
               WriteLn(myFile, '<hr width="30%" size=1 color="grey">');
               WriteLn(myFile, '<p><table>');
               WriteLn(myFile, '<tr>');
-              WriteLn(myFile, '  <th><font size="1">WBS</font></th>');
-              WriteLn(myFile, '  <th><font size="1">Activity</font></th>');
-              WriteLn(myFile, '  <th><font size="1">State</font></th>');
-              WriteLn(myFile, '  <th><font size="1">Start date</font></th>');
-              WriteLn(myFile, '  <th><font size="1">End date</font></th>');
-              WriteLn(myFile, '  <th><font size="1">Duration</font></th>');
-              WriteLn(myFile, '  <th><font size="1">Resources</font></th>');
-              WriteLn(myFile, '  <th><font size="1">Priority</font></th>');
-              WriteLn(myFile, '  <th><font size="1">Completion</font></th>');
-              WriteLn(myFile, '  <th><font size="1">Cost</font></th>');
-              WriteLn(myFile, '  <th><font size="1">Notes</font></th>');
+              WriteLn(myFile, '  <th><font size="1">' + fmMain.lbWbs + '</font></th>');
+              WriteLn(myFile, '  <th><font size="1">' + fmMain.lbActivity + '</font></th>');
+              WriteLn(myFile, '  <th><font size="1">' + fmMain.lbState + '</font></th>');
+              WriteLn(myFile, '  <th><font size="1">' + fmMain.lbStartDate + '</font></th>');
+              WriteLn(myFile, '  <th><font size="1">' + fmMain.lbEndDate + '</font></th>');
+              WriteLn(myFile, '  <th><font size="1">' + fmMain.lbDuration + '</font></th>');
+              WriteLn(myFile, '  <th><font size="1">' + fmMain.lbResources + '</font></th>');
+              WriteLn(myFile, '  <th><font size="1">' + fmMain.lbPriority + '</font></th>');
+              WriteLn(myFile, '  <th><font size="1">' + fmMain.lbCompletion + '</font></th>');
+              WriteLn(myFile, '  <th><font size="1">' + fmMain.lbCost + '</font></th>');
+              WriteLn(myFile, '  <th><font size="1">' + fmMain.lbNotes + '</font></th>');
               WriteLn(myFile, '</tr>');
               SubActText := sqReadNotes.FieldByName('NotesActivities').AsString;
               WriteLn(myFile, '<tr>');

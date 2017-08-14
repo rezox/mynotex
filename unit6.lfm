@@ -16,7 +16,7 @@ object fmResizeImage: TfmResizeImage
   OnShow = FormShow
   Position = poScreenCenter
   ShowInTaskBar = stNever
-  LCLVersion = '1.4.4.0'
+  LCLVersion = '1.6.2.0'
   object rgResizeImage: TRadioGroup
     Left = 32
     Height = 192
@@ -32,7 +32,7 @@ object fmResizeImage: TfmResizeImage
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 3
-    ClientHeight = 170
+    ClientHeight = 171
     ClientWidth = 379
     Columns = 3
     ItemIndex = 5
@@ -75,9 +75,9 @@ object fmResizeImage: TfmResizeImage
   end
   object lbSize: TLabel
     Left = 32
-    Height = 21
+    Height = 20
     Top = 232
-    Width = 88
+    Width = 81
     Caption = 'Picture size: '
     ParentColor = False
   end

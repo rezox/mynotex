@@ -17,13 +17,13 @@ object fmSetAlarm: TfmSetAlarm
   OnShow = FormShow
   Position = poScreenCenter
   ShowInTaskBar = stNever
-  LCLVersion = '1.4.4.0'
+  LCLVersion = '1.6.2.0'
   object tpAlarm: TZVDateTimePicker
     Left = 233
     Height = 52
     Hint = 'Set the alarm time'
     Top = 35
-    Width = 183
+    Width = 171
     CenturyFrom = 1941
     MaxDate = 2958465
     MinDate = -53780
@@ -642,10 +642,10 @@ object fmSetAlarm: TfmSetAlarm
   end
   object cbAlarm: TCheckBox
     Left = 233
-    Height = 25
+    Height = 24
     Hint = 'Activate the alarm'
     Top = 94
-    Width = 83
+    Width = 77
     Caption = 'Activate'
     OnChange = cbAlarmChange
     TabOrder = 1

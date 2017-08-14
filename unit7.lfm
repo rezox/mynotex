@@ -15,7 +15,7 @@ object fmOptions: TfmOptions
   OnKeyPress = FormKeyPress
   Position = poScreenCenter
   ShowInTaskBar = stNever
-  LCLVersion = '1.4.4.0'
+  LCLVersion = '1.6.2.0'
   object bvFrame: TBevel
     Left = 24
     Height = 531
@@ -26,9 +26,9 @@ object fmOptions: TfmOptions
   end
   object lbOptionsFont: TLabel
     Left = 403
-    Height = 21
+    Height = 20
     Top = 105
-    Width = 165
+    Width = 148
     Caption = 'Default font of the text'
     ParentColor = False
   end
@@ -44,34 +44,34 @@ object fmOptions: TfmOptions
   end
   object cbOptionsAutosync: TCheckBox
     Left = 51
-    Height = 25
+    Height = 24
     Top = 370
-    Width = 150
+    Width = 138
     Caption = 'Activate autosync'
     OnChange = cbOptionsAutosyncChange
     TabOrder = 4
   end
   object lbOptionsFormColor: TLabel
     Left = 403
-    Height = 21
+    Height = 20
     Top = 32
-    Width = 84
+    Width = 76
     Caption = 'Forms color'
     ParentColor = False
   end
   object lbOptionsFormTrans: TLabel
     Left = 51
-    Height = 21
+    Height = 20
     Top = 166
-    Width = 139
+    Width = 126
     Caption = 'Forms transparency'
     ParentColor = False
   end
   object cbOptionsOpenLastFile: TCheckBox
     Left = 51
-    Height = 25
+    Height = 24
     Top = 330
-    Width = 179
+    Width = 165
     Caption = 'Open last file on start'
     OnChange = cbOptionsOpenLastFileChange
     TabOrder = 3
@@ -105,7 +105,7 @@ object fmOptions: TfmOptions
   end
   object tbOptionsFormTrans: TTrackBar
     Left = 51
-    Height = 43
+    Height = 52
     Top = 194
     Width = 216
     Max = 255
@@ -129,18 +129,18 @@ object fmOptions: TfmOptions
   end
   object cbOptionsActivateTray: TCheckBox
     Left = 51
-    Height = 25
+    Height = 24
     Top = 290
-    Width = 148
+    Width = 135
     Caption = 'Activate tray icon'
     OnChange = cbOptionsActivateTrayChange
     TabOrder = 2
   end
   object lbOptionsColor: TLabel
     Left = 403
-    Height = 21
+    Height = 20
     Top = 198
-    Width = 237
+    Width = 213
     Caption = 'Titles font and background colors'
     ParentColor = False
   end
@@ -164,17 +164,17 @@ object fmOptions: TfmOptions
   end
   object lbOptionDef1: TLabel
     Left = 403
-    Height = 21
+    Height = 20
     Top = 265
-    Width = 67
+    Width = 59
     Caption = 'Default 1'
     ParentColor = False
   end
   object lbOptionDef2: TLabel
     Left = 403
-    Height = 21
+    Height = 20
     Top = 339
-    Width = 67
+    Width = 59
     Caption = 'Default 2'
     ParentColor = False
   end
@@ -198,9 +198,9 @@ object fmOptions: TfmOptions
   end
   object lbOptionDef3: TLabel
     Left = 403
-    Height = 21
+    Height = 20
     Top = 413
-    Width = 67
+    Width = 59
     Caption = 'Default 3'
     ParentColor = False
   end
@@ -224,18 +224,18 @@ object fmOptions: TfmOptions
   end
   object cbOptionsNoMsg: TCheckBox
     Left = 51
-    Height = 25
+    Height = 24
     Top = 410
-    Width = 257
+    Width = 241
     Caption = 'No sync message except on error'
     OnChange = cbOptionsNoMsgChange
     TabOrder = 5
   end
   object cbOptionsNoChar: TCheckBox
     Left = 51
-    Height = 25
+    Height = 24
     Top = 450
-    Width = 167
+    Width = 155
     Caption = 'No characters count'
     OnChange = cbOptionsNoCharChange
     TabOrder = 6
@@ -251,16 +251,16 @@ object fmOptions: TfmOptions
   end
   object cbOptionsNoAutosave: TCheckBox
     Left = 51
-    Height = 25
+    Height = 24
     Top = 490
-    Width = 145
+    Width = 134
     Caption = 'Disable autosave'
     OnChange = cbOptionsNoAutosaveChange
     TabOrder = 7
   end
   object udOptParSpace: TUpDown
     Left = 652
-    Height = 33
+    Height = 37
     Top = 482
     Width = 26
     Associate = edOptParSpace
@@ -273,7 +273,7 @@ object fmOptions: TfmOptions
   end
   object edOptParSpace: TEdit
     Left = 572
-    Height = 33
+    Height = 37
     Top = 482
     Width = 80
     OnChange = edOptParSpaceChange
@@ -284,23 +284,23 @@ object fmOptions: TfmOptions
   end
   object lbOptionsPar: TLabel
     Left = 572
-    Height = 21
+    Height = 20
     Top = 456
-    Width = 115
+    Width = 104
     Caption = 'Paragraph space'
     ParentColor = False
   end
   object lbOptionsLine: TLabel
     Left = 403
-    Height = 21
+    Height = 20
     Top = 456
-    Width = 72
+    Width = 67
     Caption = 'Line space'
     ParentColor = False
   end
   object edOptLineSpace: TEdit
     Left = 403
-    Height = 33
+    Height = 37
     Top = 482
     Width = 80
     OnChange = edOptLineSpaceChange
@@ -311,7 +311,7 @@ object fmOptions: TfmOptions
   end
   object udOptLineSpace: TUpDown
     Left = 483
-    Height = 33
+    Height = 37
     Top = 482
     Width = 26
     Associate = edOptLineSpace

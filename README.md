@@ -1,1 +1,5 @@
-MyNotex is a free note-taking, document file and activity manager for GNU/Linux.
+MyNotex is a free note-taking, document file and activity manager for GNU/Linux. Notes are gathered under different subjects and are made by a title, a date, a tags (keywords) list and a free-length text. This may be formatted: it is possible to change the font name, size and color of a selected text and of its background, and also to set bold, italic, underline and strike-through; the text may have pictures within it. The software can manage paragraph alignment, bullets, numbered and alphabetic lists with automatic indentation. Each note may have any number of attachments (files of every kind), and has also a spreadsheet-like grid to manage a list of activities which is quite similar to the one used in many software of project management. The various activities of one or all the notes of a file may be shown in a diary view and possibly exported in iCal format. A single file of MyNotex contains various notes filed under different subjects.
+
+The official website of the software is https://sites.google.com/site/mynotex/home.
+
+The packages to install MyNotex on GNU/Linux are available also in this repository, in the directory "Packages".
